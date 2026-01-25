@@ -1464,37 +1464,74 @@ struct ScanButton: View {
 // MARK: - Player Count Selector
 struct PlayerCountSelector: View {
     @ObservedObject var viewModel: PokerViewModel
+    @State private var isExpanded: Bool = false
     
     var body: some View {
-        VStack(spacing: 12) {
-            PlayerCountHeader(viewModel: viewModel)
-            PlayerCountButtons(viewModel: viewModel)
+        VStack(spacing: 0) {
+            // Header - Always visible, tappable to expand/collapse
+            Button(action: {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    isExpanded.toggle()
+                }
+            }) {
+                PlayerCountHeader(viewModel: viewModel, isExpanded: isExpanded)
+            }
+            .buttonStyle(PlainButtonStyle())
+            
+            // Expandable player count buttons
+            if isExpanded {
+                VStack(spacing: 12) {
+                    Divider()
+                        .background(Color.orange.opacity(0.3))
+                        .padding(.horizontal, -18)
+                    
+                    PlayerCountButtons(viewModel: viewModel)
+                }
+                .padding(.top, 12)
+                .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
+            }
         }
         .padding(18)
-        .background(PlayerCountBackground())
+        .background(PlayerCountBackground(isExpanded: isExpanded))
         .shadow(color: Color.orange.opacity(0.2), radius: 15, x: 0, y: 8)
     }
 }
 
 struct PlayerCountHeader: View {
     @ObservedObject var viewModel: PokerViewModel
+    let isExpanded: Bool
     
     var body: some View {
         HStack {
             Image(systemName: "person.3.fill")
                 .font(.system(size: 16))
                 .foregroundColor(.orange)
-            Text("Number of Players at Table")
+            Text("Players at Table")
                 .font(.system(size: 15, weight: .bold))
                 .foregroundColor(.white)
+            
             Spacer()
-            Text(gameTypeLabel)
-                .font(.system(size: 13, weight: .bold))
-                .foregroundColor(.orange)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color.orange.opacity(0.25))
-                .cornerRadius(8)
+            
+            // Current player count badge
+            HStack(spacing: 8) {
+                Text("\(viewModel.playerCount)")
+                    .font(.system(size: 18, weight: .black))
+                    .foregroundColor(.orange)
+                    .frame(minWidth: 28)
+                
+                Text(gameTypeLabel)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(.orange)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.orange.opacity(0.25))
+                    .cornerRadius(8)
+            }
+            
+            // Expand/collapse chevron
+            Image(systemName: isExpanded ? "chevron.up.circle.fill" : "chevron.down.circle.fill")
+                .font(.system(size: 20))
+                .foregroundColor(.orange.opacity(0.8))
         }
     }
     
@@ -1599,6 +1636,8 @@ struct PlayerCountButton: View {
 }
 
 struct PlayerCountBackground: View {
+    let isExpanded: Bool
+    
     var body: some View {
         RoundedRectangle(cornerRadius: 18)
             .fill(
@@ -1612,11 +1651,13 @@ struct PlayerCountBackground: View {
                 RoundedRectangle(cornerRadius: 18)
                     .stroke(
                         LinearGradient(
-                            colors: [Color.orange.opacity(0.6), Color.orange.opacity(0.3)],
+                            colors: isExpanded ? 
+                                [Color.orange.opacity(0.8), Color.orange.opacity(0.5)] :
+                                [Color.orange.opacity(0.6), Color.orange.opacity(0.3)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         ),
-                        lineWidth: 2
+                        lineWidth: isExpanded ? 2.5 : 2
                     )
             )
     }
