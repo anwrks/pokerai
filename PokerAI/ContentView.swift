@@ -1256,6 +1256,26 @@ struct StatsGridView: View {
                     gradient: stats.recommendation.color
                 )
             }
+            
+            // Information boxes for Hand Equity and Fold Equity
+            VStack(spacing: 12) {
+                EquityInfoBox(
+                    title: "What is Hand Equity?",
+                    icon: "chart.pie.fill",
+                    iconColor: .green,
+                    explanation: "Hand equity is your probability of winning the pot by the river based on your current hand strength and potential to improve. It considers your outs, cards to come, and number of opponents.",
+                    example: "Example: 70% hand equity means you'll win this pot 7 out of 10 times on average."
+                )
+                
+                EquityInfoBox(
+                    title: "What is Fold Equity?",
+                    icon: "arrow.down.circle.fill",
+                    iconColor: .orange,
+                    explanation: "Fold equity is the probability that your opponents will fold if you bet or raise. It's higher early in the hand and decreases with more players and as you reach the river.",
+                    example: "Example: 25% fold equity means 1 in 4 times opponents will fold to your bet, letting you win without showdown."
+                )
+            }
+            .padding(.top, 8)
         }
         .padding(.horizontal, 20)
         .transition(.scale.combined(with: .opacity))
@@ -1596,6 +1616,97 @@ struct PlayerCountBackground: View {
                         lineWidth: 2
                     )
             )
+    }
+}
+
+// MARK: - Equity Info Box
+struct EquityInfoBox: View {
+    let title: String
+    let icon: String
+    let iconColor: Color
+    let explanation: String
+    let example: String
+    
+    @State private var isExpanded: Bool = false
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header - Always visible, tappable
+            Button(action: {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    isExpanded.toggle()
+                }
+            }) {
+                HStack(spacing: 12) {
+                    Image(systemName: icon)
+                        .font(.system(size: 16))
+                        .foregroundColor(iconColor)
+                        .frame(width: 24)
+                    
+                    Text(title)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white)
+                    
+                    Spacer()
+                    
+                    Image(systemName: isExpanded ? "chevron.up.circle.fill" : "info.circle.fill")
+                        .font(.system(size: 18))
+                        .foregroundColor(.white.opacity(0.6))
+                }
+                .padding(14)
+                .background(Color.white.opacity(0.08))
+            }
+            .buttonStyle(PlainButtonStyle())
+            
+            // Expandable content
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 12) {
+                    Divider()
+                        .background(Color.white.opacity(0.2))
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Explanation")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(iconColor.opacity(0.9))
+                            .textCase(.uppercase)
+                        
+                        Text(explanation)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(.white.opacity(0.85))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "lightbulb.fill")
+                                .font(.system(size: 11))
+                                .foregroundColor(.yellow.opacity(0.8))
+                            Text("Example")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.yellow.opacity(0.9))
+                                .textCase(.uppercase)
+                        }
+                        
+                        Text(example)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(.white.opacity(0.8))
+                            .italic()
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(12)
+                    .background(Color.yellow.opacity(0.1))
+                    .cornerRadius(8)
+                }
+                .padding(14)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .background(Color.white.opacity(0.05))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(iconColor.opacity(0.3), lineWidth: 1)
+        )
     }
 }
 
