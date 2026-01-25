@@ -824,9 +824,15 @@ class PokerViewModel: NSObject, ObservableObject {
             // Calculate fold equity (probability opponents fold)
             let foldEquity = self.calculateFoldEquity(handStrength: handStrength, gameState: self.gameState, players: self.playerCount)
             
-            let outs = self.calculateOuts(rankCounts: rankCounts, suitCounts: suitCounts)
+            // Calculate outs - only if there are cards to come (before river)
             let cardsRemaining = 5 - self.communityCards.count
-            let potOdds = outs > 0 ? (cardsRemaining == 2 ? Double(outs) * 4 : Double(outs) * 2) : 0
+            let outs = cardsRemaining > 0 ? self.calculateOuts(rankCounts: rankCounts, suitCounts: suitCounts) : 0
+            let potOdds = outs > 0 && cardsRemaining > 0 ? (cardsRemaining == 2 ? Double(outs) * 4 : Double(outs) * 2) : 0
+            
+            print("   🎯 Outs calculation:")
+            print("      Cards remaining: \(cardsRemaining)")
+            print("      Outs: \(outs)")
+            print("      Pot odds: \(String(format: "%.1f", potOdds))%")
             
             let recommendation = self.getRecommendation(strength: handStrength, winRate: adjustedWinRate)
             

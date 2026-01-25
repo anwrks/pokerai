@@ -1244,10 +1244,10 @@ struct StatsGridView: View {
             // Second row
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
                 ModernStatCard(
-                    title: "Outs",
-                    value: "\(stats.outs)",
-                    subtitle: "~\(String(format: "%.1f", stats.potOdds))% to hit",
-                    icon: "target",
+                    title: stats.outs == 0 ? "River" : "Outs",
+                    value: stats.outs == 0 ? "0" : "\(stats.outs)",
+                    subtitle: stats.outs == 0 ? "no cards to come" : "~\(String(format: "%.1f", stats.potOdds))% to hit",
+                    icon: stats.outs == 0 ? "flag.checkered" : "target",
                     gradient: [Color.pink, Color.red.opacity(0.7)]
                 )
                 
