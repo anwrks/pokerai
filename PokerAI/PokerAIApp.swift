@@ -11,7 +11,7 @@ import SwiftUI
 struct PokerAIApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView() as ContentView
         }
     }
 }

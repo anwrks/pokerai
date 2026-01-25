@@ -37,10 +37,20 @@ struct ContentView: View {
                             ScannedCardsView(viewModel: viewModel)
                         }
                         
-                        Spacer(minLength: 40)
+                        Spacer(minLength: 140) // Extra space for bottom summary box
                     }
                     .padding(.bottom, 20)
                 }
+            }
+            
+            // Fixed bottom summary box - shows current hand vs best possible
+            if let stats = viewModel.stats, viewModel.communityCards.count >= 3 {
+                VStack {
+                    Spacer()
+                    BottomHandSummaryView(viewModel: viewModel, stats: stats)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+                .zIndex(500)
             }
             
             // Camera popup overlay
@@ -1586,6 +1596,214 @@ struct PlayerCountBackground: View {
                         lineWidth: 2
                     )
             )
+    }
+}
+
+// MARK: - Bottom Hand Summary View
+struct BottomHandSummaryView: View {
+    @ObservedObject var viewModel: PokerViewModel
+    let stats: PokerStats
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .center, spacing: 16) {
+                // Your Current Hand
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "person.fill")
+                            .font(.system(size: 11))
+                            .foregroundColor(.green.opacity(0.8))
+                        Text("Your Hand")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.white.opacity(0.6))
+                            .textCase(.uppercase)
+                    }
+                    
+                    Text(stats.handName)
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.green)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.up.right.circle.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(.green.opacity(0.7))
+                        Text("\(stats.adjustedWinRate)% win vs \(stats.playerCount - 1)")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(.green.opacity(0.9))
+                    }
+                }
+                
+                Spacer()
+                
+                // VS Divider
+                VStack(spacing: 2) {
+                    Text("VS")
+                        .font(.system(size: 12, weight: .black))
+                        .foregroundColor(.white.opacity(0.4))
+                    
+                    Rectangle()
+                        .fill(Color.white.opacity(0.2))
+                        .frame(width: 1, height: 30)
+                }
+                
+                Spacer()
+                
+                // Best Possible Hand (The Nuts)
+                VStack(alignment: .trailing, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Text("The Nuts")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.white.opacity(0.6))
+                            .textCase(.uppercase)
+                        Image(systemName: "crown.fill")
+                            .font(.system(size: 11))
+                            .foregroundColor(.yellow.opacity(0.8))
+                    }
+                    
+                    Text(bestPossibleHand)
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.yellow)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    
+                    HStack(spacing: 4) {
+                        if stats.handName == bestPossibleHand {
+                            Image(systemName: "checkmark.seal.fill")
+                                .font(.system(size: 10))
+                                .foregroundColor(.yellow)
+                            Text("You have it!")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundColor(.yellow)
+                        } else {
+                            Image(systemName: "target")
+                                .font(.system(size: 10))
+                                .foregroundColor(.yellow.opacity(0.7))
+                            Text("Need to improve")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundColor(.yellow.opacity(0.9))
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+        }
+        .background(
+            ZStack {
+                // Background blur effect
+                Color.black.opacity(0.85)
+                
+                // Gradient overlay
+                LinearGradient(
+                    colors: [
+                        Color.cyan.opacity(0.3),
+                        Color.purple.opacity(0.2),
+                        Color.blue.opacity(0.3)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
+        )
+        .overlay(
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [Color.cyan.opacity(0.5), Color.purple.opacity(0.5)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .frame(height: 3),
+            alignment: .top
+        )
+        .shadow(color: Color.black.opacity(0.5), radius: 20, x: 0, y: -10)
+    }
+    
+    var bestPossibleHand: String {
+        let communityCount = viewModel.communityCards.count
+        
+        if communityCount < 3 {
+            return "Waiting..."
+        }
+        
+        let board = viewModel.communityCards
+        
+        // Check for possible hands based on board texture
+        if hasPossibleStraightFlush(board) {
+            return "Straight Flush"
+        }
+        
+        if hasPossibleQuads(board) {
+            return "Four of a Kind"
+        }
+        
+        if hasPossibleFullHouse(board) {
+            return "Full House"
+        }
+        
+        if hasPossibleFlush(board) {
+            return "Flush"
+        }
+        
+        if hasPossibleStraight(board) {
+            return "Straight"
+        }
+        
+        if hasPossibleTrips(board) {
+            return "Three of a Kind"
+        }
+        
+        if hasPossibleTwoPair(board) {
+            return "Two Pair"
+        }
+        
+        return "Pair"
+    }
+    
+    // Helper functions to determine possible hands
+    func hasPossibleStraightFlush(_ cards: [String]) -> Bool {
+        let suits = cards.map { String($0.suffix(1)) }
+        let suitCounts = Dictionary(suits.map { ($0, 1) }, uniquingKeysWith: +)
+        return suitCounts.values.contains { $0 >= 3 }
+    }
+    
+    func hasPossibleQuads(_ cards: [String]) -> Bool {
+        let ranks = cards.map { String($0.prefix($0.count - 1)) }
+        let rankCounts = Dictionary(ranks.map { ($0, 1) }, uniquingKeysWith: +)
+        return rankCounts.values.contains { $0 >= 2 }
+    }
+    
+    func hasPossibleFullHouse(_ cards: [String]) -> Bool {
+        let ranks = cards.map { String($0.prefix($0.count - 1)) }
+        let rankCounts = Dictionary(ranks.map { ($0, 1) }, uniquingKeysWith: +)
+        let pairs = rankCounts.values.filter { $0 >= 2 }
+        return pairs.count >= 1
+    }
+    
+    func hasPossibleFlush(_ cards: [String]) -> Bool {
+        let suits = cards.map { String($0.suffix(1)) }
+        let suitCounts = Dictionary(suits.map { ($0, 1) }, uniquingKeysWith: +)
+        return suitCounts.values.contains { $0 >= 3 }
+    }
+    
+    func hasPossibleStraight(_ cards: [String]) -> Bool {
+        return cards.count >= 3
+    }
+    
+    func hasPossibleTrips(_ cards: [String]) -> Bool {
+        let ranks = cards.map { String($0.prefix($0.count - 1)) }
+        let rankCounts = Dictionary(ranks.map { ($0, 1) }, uniquingKeysWith: +)
+        return rankCounts.values.contains { $0 >= 2 }
+    }
+    
+    func hasPossibleTwoPair(_ cards: [String]) -> Bool {
+        let ranks = cards.map { String($0.prefix($0.count - 1)) }
+        let rankCounts = Dictionary(ranks.map { ($0, 1) }, uniquingKeysWith: +)
+        let pairs = rankCounts.values.filter { $0 >= 2 }
+        return pairs.count >= 2 || cards.count >= 4
     }
 }
 
