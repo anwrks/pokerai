@@ -339,12 +339,17 @@ class PokerViewModel: NSObject, ObservableObject {
     }
     
     func analyzeImage(_ image: UIImage) {
-        guard let imageData = image.jpegData(compressionQuality: 0.5) else { // Reduced from 0.8 for faster upload
+        // Resize image for faster upload/analysis
+        let resizedImage = resizeImage(image, targetWidth: 800) // Smaller size for faster processing
+        
+        guard let imageData = resizedImage.jpegData(compressionQuality: 0.3) else { // Further reduced quality for speed
             isAnalyzing = false
             return
         }
         
         let base64String = imageData.base64EncodedString()
+        
+        print("📊 Image size: \(imageData.count / 1024)KB (optimized for speed)")
         
         // API request
         let url = URL(string: "https://api.anthropic.com/v1/messages")!
@@ -354,9 +359,12 @@ class PokerViewModel: NSObject, ObservableObject {
         request.setValue("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", forHTTPHeaderField: "x-api-key")
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
         
+        // Set timeout for faster failure
+        request.timeoutInterval = 15 // 15 seconds max
+        
         let body: [String: Any] = [
-            "model": "claude-sonnet-4-20250514",
-            "max_tokens": 500, // Reduced from 1000 for faster response
+            "model": "claude-3-5-haiku-20241022", // Faster, cheaper model for card detection
+            "max_tokens": 100, // Reduced to minimum needed for card detection
             "messages": [
                 [
                     "role": "user",
@@ -371,7 +379,7 @@ class PokerViewModel: NSObject, ObservableObject {
                         ],
                         [
                             "type": "text",
-                            "text": "Look at this image and identify ONLY the playing cards that are clearly visible and in focus in THIS photo. Do not infer or imagine any cards that are not visible. Return ONLY a JSON array with the cards you can actually see. Each card should be in format like \"AS\" (Ace of Spades), \"KH\" (King of Hearts), \"10D\" (Ten of Diamonds), etc. Use: A,K,Q,J,10,9,8,7,6,5,4,3,2 for ranks and S,H,D,C for suits (Spades, Hearts, Diamonds, Clubs). IMPORTANT: Use \"10\" for tens, NOT \"T\". If you cannot clearly see any cards, return an empty array []. Return ONLY the JSON array, nothing else. Example: [\"AS\",\"KH\",\"10D\",\"9C\"]"
+                            "text": "Return ONLY a JSON array of playing cards visible in this image. Format: [\"AS\",\"KH\",\"10D\"]. Use A,K,Q,J,10,9,8,7,6,5,4,3,2 for ranks and S,H,D,C for suits. No explanation."
                         ]
                     ]
                 ]
@@ -380,8 +388,13 @@ class PokerViewModel: NSObject, ObservableObject {
         
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         
+        let startTime = Date()
+        
         URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             guard let self = self else { return }
+            
+            let elapsedTime = Date().timeIntervalSince(startTime)
+            print("⏱️ API response time: \(String(format: "%.2f", elapsedTime))s")
             
             DispatchQueue.main.async {
                 self.isAnalyzing = false
@@ -580,7 +593,7 @@ class PokerViewModel: NSObject, ObservableObject {
         if gameMode == .omahaHigh || gameMode == .omahaHiLo {
             prompt = "In Omaha poker, you MUST use exactly 2 cards from your hand and 3 from the board. Given hole cards: \(holeCards.joined(separator: ", ")) and community cards: \(communityCards.joined(separator: ", ")), what is the BEST possible poker hand? Respond with ONLY the hand name (e.g., 'Royal Flush', 'Straight Flush', 'Four of a Kind', 'Full House', 'Flush', 'Straight', 'Three of a Kind', 'Two Pair', 'Pair', 'High Card'). No explanation, just the hand name."
         } else {
-            prompt = "Given these Texas Hold'em cards: \(cardsString), what is the BEST possible 5-card poker hand? Consider all possible combinations. Respond with ONLY the hand name (e.g., 'Royal Flush', 'Straight Flush', 'Four of a Kind', 'Full House', 'Flush', 'Straight', 'Three of a Kind', 'Two Pair', 'Pair', 'High Card'). No explanation, just the hand name."
+            prompt = "Cards: \(cardsString). Best 5-card poker hand? Reply with only the hand name: Royal Flush, Straight Flush, Four of a Kind, Full House, Flush, Straight, Three of a Kind, Two Pair, Pair, or High Card."
         }
         
         print("   Prompt: \(prompt)")
@@ -592,9 +605,12 @@ class PokerViewModel: NSObject, ObservableObject {
         request.setValue("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", forHTTPHeaderField: "x-api-key")
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
         
+        // Set timeout for faster failure
+        request.timeoutInterval = 10
+        
         let body: [String: Any] = [
-            "model": "claude-sonnet-4-20250514",
-            "max_tokens": 50,
+            "model": "claude-3-5-haiku-20241022", // Faster model for hand evaluation
+            "max_tokens": 30, // Minimal tokens needed
             "messages": [
                 ["role": "user", "content": prompt]
             ]
@@ -602,7 +618,12 @@ class PokerViewModel: NSObject, ObservableObject {
         
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         
+        let startTime = Date()
+        
         URLSession.shared.dataTask(with: request) { data, response, error in
+            let elapsedTime = Date().timeIntervalSince(startTime)
+            print("⏱️ Hand evaluation time: \(String(format: "%.2f", elapsedTime))s")
+            
             if let error = error {
                 print("❌ AI evaluation error: \(error.localizedDescription)")
                 completion(nil)
@@ -613,11 +634,6 @@ class PokerViewModel: NSObject, ObservableObject {
                 print("❌ AI evaluation: No data received")
                 completion(nil)
                 return
-            }
-            
-            // Debug response
-            if let responseString = String(data: data, encoding: .utf8) {
-                print("📡 AI response: \(responseString)")
             }
             
             guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -1312,6 +1328,18 @@ class PokerViewModel: NSObject, ObservableObject {
         stats = nil
         stopCapture()
         // Game mode persists across resets
+    }
+    
+    // Helper function to resize images for faster upload
+    func resizeImage(_ image: UIImage, targetWidth: CGFloat) -> UIImage {
+        let scale = targetWidth / image.size.width
+        let newHeight = image.size.height * scale
+        let newSize = CGSize(width: targetWidth, height: newHeight)
+        
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        return renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
+        }
     }
     
     // Debug function - test API without camera
