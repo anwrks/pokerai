@@ -1732,17 +1732,26 @@ struct BottomHandSummaryView: View {
                     
                     Text(stats.handName)
                         .font(.system(size: 18, weight: .bold))
-                        .foregroundColor(.green)
+                        .foregroundColor(stats.adjustedWinRate == 100 ? .yellow : .green)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                     
                     HStack(spacing: 4) {
-                        Image(systemName: "arrow.up.right.circle.fill")
-                            .font(.system(size: 10))
-                            .foregroundColor(.green.opacity(0.7))
-                        Text("\(stats.adjustedWinRate)% win vs \(stats.playerCount - 1)")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(.green.opacity(0.9))
+                        if stats.adjustedWinRate == 100 {
+                            Image(systemName: "crown.fill")
+                                .font(.system(size: 10))
+                                .foregroundColor(.yellow)
+                            Text("100% - THE NUTS!")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(.yellow)
+                        } else {
+                            Image(systemName: "arrow.up.right.circle.fill")
+                                .font(.system(size: 10))
+                                .foregroundColor(.green.opacity(0.7))
+                            Text("\(stats.adjustedWinRate)% win vs \(stats.playerCount - 1)")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundColor(.green.opacity(0.9))
+                        }
                     }
                 }
                 
@@ -1806,31 +1815,54 @@ struct BottomHandSummaryView: View {
                 // Background blur effect
                 Color.black.opacity(0.85)
                 
-                // Gradient overlay
-                LinearGradient(
-                    colors: [
-                        Color.cyan.opacity(0.3),
-                        Color.purple.opacity(0.2),
-                        Color.blue.opacity(0.3)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                // Gradient overlay - special golden gradient if you have the nuts
+                if stats.adjustedWinRate == 100 {
+                    LinearGradient(
+                        colors: [
+                            Color.yellow.opacity(0.4),
+                            Color.orange.opacity(0.3),
+                            Color.yellow.opacity(0.4)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                } else {
+                    LinearGradient(
+                        colors: [
+                            Color.cyan.opacity(0.3),
+                            Color.purple.opacity(0.2),
+                            Color.blue.opacity(0.3)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                }
             }
         )
         .overlay(
             Rectangle()
                 .fill(
-                    LinearGradient(
-                        colors: [Color.cyan.opacity(0.5), Color.purple.opacity(0.5)],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
+                    stats.adjustedWinRate == 100 ?
+                        LinearGradient(
+                            colors: [Color.yellow, Color.orange, Color.yellow],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        ) :
+                        LinearGradient(
+                            colors: [Color.cyan.opacity(0.5), Color.purple.opacity(0.5)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
                 )
                 .frame(height: 3),
             alignment: .top
         )
-        .shadow(color: Color.black.opacity(0.5), radius: 20, x: 0, y: -10)
+        .shadow(
+            color: stats.adjustedWinRate == 100 ? Color.yellow.opacity(0.6) : Color.black.opacity(0.5),
+            radius: 20,
+            x: 0,
+            y: -10
+        )
     }
     
     var bestPossibleHand: String {

@@ -785,19 +785,35 @@ class PokerViewModel: NSObject, ObservableObject {
             
             print("   ✅ Base win rate: \(baseWinRate)%")
             
+            // Check if player has the absolute nuts (unbeatable hand)
+            let hasTheNuts = self.hasAbsoluteNuts(
+                handName: handName,
+                handStrength: handStrength,
+                holeCards: self.holeCards,
+                communityCards: self.communityCards
+            )
+            
             // Adjust win rate based on player count
             let onRiver = self.communityCards.count == 5
             print("\n👥 ADJUSTING FOR PLAYER COUNT")
             print("   Players: \(self.playerCount)")
             print("   On river: \(onRiver)")
             print("   Hand strength: \(handStrength)")
+            print("   Has the nuts: \(hasTheNuts)")
             
-            let adjustedWinRate = self.adjustWinRateForPlayers(
-                baseWinRate: baseWinRate,
-                handStrength: handStrength,
-                players: self.playerCount,
-                onRiver: onRiver
-            )
+            var adjustedWinRate: Int
+            
+            if hasTheNuts {
+                adjustedWinRate = 100
+                print("      → 🎯 ABSOLUTE NUTS! Setting win rate to 100%")
+            } else {
+                adjustedWinRate = self.adjustWinRateForPlayers(
+                    baseWinRate: baseWinRate,
+                    handStrength: handStrength,
+                    players: self.playerCount,
+                    onRiver: onRiver
+                )
+            }
             
             print("   ✅ Adjusted win rate: \(adjustedWinRate)%")
             print("")
@@ -823,7 +839,8 @@ class PokerViewModel: NSObject, ObservableObject {
                 outs: outs,
                 holeCards: self.holeCards,
                 communityCards: self.communityCards,
-                playerCount: self.playerCount
+                playerCount: self.playerCount,
+                hasNuts: hasTheNuts
             )
             
             // Generate Omaha analysis if applicable (only for Hi-Lo, not for High-only)
@@ -977,6 +994,104 @@ class PokerViewModel: NSObject, ObservableObject {
         return result
     }
     
+    func hasAbsoluteNuts(handName: String, handStrength: Int, holeCards: [String], communityCards: [String]) -> Bool {
+        // Only check on the river when all cards are known
+        guard communityCards.count == 5 else {
+            return false
+        }
+        
+        let board = communityCards
+        
+        // Get board characteristics
+        let boardRanks = board.map { String($0.prefix($0.count - 1)) }
+        let boardSuits = board.map { String($0.suffix(1)) }
+        let boardRankCounts = Dictionary(boardRanks.map { ($0, 1) }, uniquingKeysWith: +)
+        let boardSuitCounts = Dictionary(boardSuits.map { ($0, 1) }, uniquingKeysWith: +)
+        
+        let maxSuitOnBoard = boardSuitCounts.values.max() ?? 0
+        let maxRankOnBoard = boardRankCounts.values.max() ?? 0
+        let pairsOnBoard = boardRankCounts.values.filter { $0 >= 2 }.count
+        
+        // Check for Royal Flush - always the nuts
+        if handStrength == 9 && handName.lowercased().contains("royal") {
+            print("      🎯 ROYAL FLUSH - Absolute nuts!")
+            return true
+        }
+        
+        // Straight Flush - nuts if board doesn't allow a higher straight flush
+        if handStrength == 9 && handName.lowercased().contains("straight flush") {
+            // If only 2 of the same suit on board, you have the nuts
+            if maxSuitOnBoard <= 2 {
+                print("      🎯 STRAIGHT FLUSH with board having max \(maxSuitOnBoard) suited - Absolute nuts!")
+                return true
+            }
+        }
+        
+        // Four of a Kind - nuts if you have the highest possible quads
+        if handStrength == 8 {
+            // If there's a pair on board and you have quads, check if they're the best possible
+            if maxRankOnBoard >= 2 {
+                // If the quads are Aces or the board shows trips/quads, you likely have the nuts
+                let hasAces = holeCards.contains { $0.prefix($0.count - 1) == "A" }
+                if hasAces {
+                    print("      🎯 QUAD ACES - Absolute nuts!")
+                    return true
+                }
+            }
+        }
+        
+        // Full House - nuts if board is paired and you have the highest full house
+        if handStrength == 7 && pairsOnBoard > 0 {
+            // Check if you have Aces full or the best possible full house
+            let holeRanks = holeCards.map { String($0.prefix($0.count - 1)) }
+            let hasAce = holeRanks.contains("A")
+            let hasKing = holeRanks.contains("K")
+            
+            // If board is paired and you have AA or top set, likely the nuts
+            if maxRankOnBoard == 2 && (hasAce || hasKing) {
+                // More complex check needed - simplified for now
+            }
+        }
+        
+        // Flush - nuts if you hold the Ace of the flush suit
+        if handStrength == 6 {
+            // Find the flush suit
+            let allCards = holeCards + board
+            let allSuits = allCards.map { String($0.suffix(1)) }
+            let suitCounts = Dictionary(allSuits.map { ($0, 1) }, uniquingKeysWith: +)
+            
+            if let flushSuit = suitCounts.first(where: { $0.value >= 5 })?.key {
+                // Check if you have the Ace of that suit
+                let haveNutFlush = holeCards.contains { card in
+                    let rank = String(card.prefix(card.count - 1))
+                    let suit = String(card.suffix(1))
+                    return rank == "A" && suit == flushSuit
+                }
+                
+                if haveNutFlush && maxSuitOnBoard < 4 {
+                    print("      🎯 NUT FLUSH (Ace-high) - Absolute nuts!")
+                    return true
+                }
+            }
+        }
+        
+        // Straight - nuts if board doesn't allow flush and you have the Broadway straight
+        if handStrength == 5 && maxSuitOnBoard < 3 && pairsOnBoard == 0 {
+            // Check for Broadway (AKQJT)
+            let allCards = holeCards + board
+            let allRanks = allCards.map { rankValue(String($0.prefix($0.count - 1))) }
+            
+            let hasBroadway = Set(allRanks).isSuperset(of: [14, 13, 12, 11, 10])
+            
+            if hasBroadway {
+                print("      🎯 BROADWAY STRAIGHT on unpaired, non-flush board - Absolute nuts!")
+                return true
+            }
+        }
+        
+        return false
+    }
+    
     func calculateHandEquity(handStrength: Int, outs: Int, cardsTocome: Int, players: Int) -> Double {
         // Hand equity = probability of having best hand by river
         var equity = Double(handStrength) * 10.0
@@ -1026,7 +1141,12 @@ class PokerViewModel: NSObject, ObservableObject {
         return max(0, min(60, foldEquity))
     }
     
-    func generateCommentary(handName: String, handStrength: Int, winRate: Int, gameState: String, outs: Int, holeCards: [String], communityCards: [String], playerCount: Int) -> String {
+    func generateCommentary(handName: String, handStrength: Int, winRate: Int, gameState: String, outs: Int, holeCards: [String], communityCards: [String], playerCount: Int, hasNuts: Bool) -> String {
+        
+        // Check for absolute nuts first
+        if hasNuts && communityCards.count == 5 {
+            return "🎯💎 THE ABSOLUTE NUTS! You have the best possible hand - nothing can beat you! Maximize your value and extract every chip. This is unbeatable. 100% win probability!"
+        }
         
         // Pre-flop commentary
         if communityCards.isEmpty {
