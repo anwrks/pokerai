@@ -37,6 +37,9 @@ struct ContentView: View {
                             ScannedCardsView(viewModel: viewModel)
                         }
                         
+                        // Poker Hand Rankings Button
+                        PokerHandRankingsButton()
+                        
                         Spacer(minLength: 140) // Extra space for bottom summary box
                     }
                     .padding(.bottom, 20)
@@ -1707,6 +1710,236 @@ struct EquityInfoBox: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(iconColor.opacity(0.3), lineWidth: 1)
         )
+    }
+}
+
+// MARK: - Poker Hand Rankings Button
+struct PokerHandRankingsButton: View {
+    @State private var showHandRankings = false
+    
+    var body: some View {
+        Button(action: {
+            showHandRankings = true
+        }) {
+            HStack(spacing: 10) {
+                Image(systemName: "list.number")
+                    .font(.system(size: 16, weight: .semibold))
+                Text("Poker Hand Rankings")
+                    .font(.system(size: 15, weight: .semibold))
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(
+                LinearGradient(
+                    colors: [Color.indigo.opacity(0.8), Color.purple.opacity(0.8)],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .cornerRadius(16)
+            .shadow(color: Color.purple.opacity(0.3), radius: 10, x: 0, y: 5)
+        }
+        .padding(.horizontal, 20)
+        .sheet(isPresented: $showHandRankings) {
+            PokerHandRankingsView()
+        }
+    }
+}
+
+// MARK: - Poker Hand Rankings View
+struct PokerHandRankingsView: View {
+    @Environment(\.dismiss) var dismiss
+    
+    let handRankings: [(rank: Int, name: String, description: String, example: String, color: Color)] = [
+        (10, "Royal Flush", "A, K, Q, J, 10, all the same suit", "A♠ K♠ Q♠ J♠ 10♠", .purple),
+        (9, "Straight Flush", "Five cards in a sequence, all of the same suit", "9♥ 8♥ 7♥ 6♥ 5♥", .blue),
+        (8, "Four of a Kind", "All four cards of the same rank", "7♣ 7♠ 7♦ 7♥ K♠", .cyan),
+        (7, "Full House", "Three of a kind with a pair", "10♦ 10♠ 10♣ 4♥ 4♦", .green),
+        (6, "Flush", "Any five cards of the same suit, not in sequence", "K♦ 10♦ 7♦ 6♦ 4♦", .mint),
+        (5, "Straight", "Five cards in a sequence, but not of the same suit", "9♣ 8♠ 7♥ 6♦ 5♣", .yellow),
+        (4, "Three of a Kind", "Three cards of the same rank", "7♠ 7♦ 7♣ K♠ 3♥", .orange),
+        (3, "Two Pair", "Two different pairs", "J♥ J♣ 4♠ 4♦ 9♥", .pink),
+        (2, "One Pair", "Two cards of the same rank", "A♠ A♦ 8♣ 4♥ 7♠", .red),
+        (1, "High Card", "When you don't have any of the above", "K♠ Q♦ 8♣ 5♥ 3♠", .gray)
+    ]
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                // Background
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color(red: 0.1, green: 0.1, blue: 0.15),
+                        Color(red: 0.05, green: 0.15, blue: 0.1),
+                        Color(red: 0.0, green: 0.1, blue: 0.05)
+                    ]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+                
+                ScrollView {
+                    VStack(spacing: 16) {
+                        // Header info
+                        VStack(spacing: 12) {
+                            Image(systemName: "suit.spade.fill")
+                                .font(.system(size: 48))
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [.yellow, .orange],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                            
+                            Text("Poker Hand Rankings")
+                                .font(.system(size: 28, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+                            
+                            Text("From Best to Worst")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.white.opacity(0.6))
+                        }
+                        .padding(.top, 20)
+                        .padding(.bottom, 10)
+                        
+                        // Hand rankings list
+                        ForEach(handRankings, id: \.rank) { hand in
+                            HandRankingCard(
+                                rank: hand.rank,
+                                name: hand.name,
+                                description: hand.description,
+                                example: hand.example,
+                                color: hand.color
+                            )
+                        }
+                        
+                        // Additional info
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "info.circle.fill")
+                                    .foregroundColor(.cyan)
+                                Text("Important Notes")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 8) {
+                                InfoBullet(text: "When hands tie, the highest cards win (kickers)")
+                                InfoBullet(text: "Suits are equal in poker - no suit beats another")
+                                InfoBullet(text: "The best possible hand is a Royal Flush")
+                                InfoBullet(text: "Aces can be high (A-K-Q-J-10) or low (A-2-3-4-5)")
+                            }
+                        }
+                        .padding(16)
+                        .background(Color.cyan.opacity(0.1))
+                        .cornerRadius(16)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(Color.cyan.opacity(0.3), lineWidth: 1)
+                        )
+                        .padding(.horizontal, 20)
+                        .padding(.top, 10)
+                        
+                        Spacer(minLength: 40)
+                    }
+                    .padding(.bottom, 20)
+                }
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        dismiss()
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(.white.opacity(0.6))
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Hand Ranking Card
+struct HandRankingCard: View {
+    let rank: Int
+    let name: String
+    let description: String
+    let example: String
+    let color: Color
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            // Rank badge
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [color, color.opacity(0.7)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 50, height: 50)
+                
+                Text("#\(11 - rank)")
+                    .font(.system(size: 18, weight: .black))
+                    .foregroundColor(.white)
+            }
+            
+            VStack(alignment: .leading, spacing: 6) {
+                Text(name)
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(color)
+                
+                Text(description)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.white.opacity(0.8))
+                    .fixedSize(horizontal: false, vertical: true)
+                
+                Text(example)
+                    .font(.system(size: 15, weight: .semibold, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.9))
+                    .padding(.top, 2)
+            }
+            
+            Spacer()
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.white.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(color.opacity(0.4), lineWidth: 2)
+                )
+        )
+        .padding(.horizontal, 20)
+        .shadow(color: color.opacity(0.2), radius: 8, x: 0, y: 4)
+    }
+}
+
+// MARK: - Info Bullet
+struct InfoBullet: View {
+    let text: String
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 12))
+                .foregroundColor(.cyan)
+                .padding(.top, 2)
+            
+            Text(text)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(.white.opacity(0.8))
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 }
 
