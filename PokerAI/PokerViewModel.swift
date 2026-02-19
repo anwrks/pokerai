@@ -351,19 +351,28 @@ class PokerViewModel: NSObject, ObservableObject {
         
         print("📊 Image size: \(imageData.count / 1024)KB (optimized for speed)")
         
+        // Check if API key is configured
+        guard Config.hasValidAPIKey else {
+            DispatchQueue.main.async {
+                self.isAnalyzing = false
+                self.errorMessage = "API key not configured. Please add ANTHROPIC_API_KEY to your environment or Info.plist."
+            }
+            return
+        }
+        
         // API request
-        let url = URL(string: "https://api.anthropic.com/v1/messages")!
+        let url = URL(string: Config.AI.apiBaseURL)!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("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", forHTTPHeaderField: "x-api-key")
-        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        request.setValue(Config.anthropicAPIKey, forHTTPHeaderField: "x-api-key")
+        request.setValue(Config.AI.apiVersion, forHTTPHeaderField: "anthropic-version")
         
         // Set timeout for faster failure
         request.timeoutInterval = 15 // 15 seconds max
         
         let body: [String: Any] = [
-            "model": "claude-3-5-haiku-20241022", // Faster, cheaper model for card detection
+            "model": Config.AI.visionModel, // Faster, cheaper model for card detection
             "max_tokens": 100, // Reduced to minimum needed for card detection
             "messages": [
                 [
@@ -598,18 +607,25 @@ class PokerViewModel: NSObject, ObservableObject {
         
         print("   Prompt: \(prompt)")
         
-        let url = URL(string: "https://api.anthropic.com/v1/messages")!
+        // Check if API key is configured
+        guard Config.hasValidAPIKey else {
+            print("❌ AI evaluation: API key not configured")
+            completion(nil)
+            return
+        }
+        
+        let url = URL(string: Config.AI.apiBaseURL)!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("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", forHTTPHeaderField: "x-api-key")
-        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        request.setValue(Config.anthropicAPIKey, forHTTPHeaderField: "x-api-key")
+        request.setValue(Config.AI.apiVersion, forHTTPHeaderField: "anthropic-version")
         
         // Set timeout for faster failure
         request.timeoutInterval = 10
         
         let body: [String: Any] = [
-            "model": "claude-3-5-haiku-20241022", // Faster model for hand evaluation
+            "model": Config.AI.textModel, // Faster model for hand evaluation
             "max_tokens": 30, // Minimal tokens needed
             "messages": [
                 ["role": "user", "content": prompt]
@@ -1327,7 +1343,7 @@ class PokerViewModel: NSObject, ObservableObject {
         gameState = "pre-flop"
         stats = nil
         stopCapture()
-        // Game mode persists across resets
+        // Game mode and player count persist across resets
     }
     
     // Helper function to resize images for faster upload
@@ -1346,15 +1362,20 @@ class PokerViewModel: NSObject, ObservableObject {
     func testAPI() {
         print("🧪 Testing API connection...")
         
-        let url = URL(string: "https://api.anthropic.com/v1/messages")!
+        guard Config.hasValidAPIKey else {
+            print("❌ Test Error: API key not configured")
+            return
+        }
+        
+        let url = URL(string: Config.AI.apiBaseURL)!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("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", forHTTPHeaderField: "x-api-key")
-        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        request.setValue(Config.anthropicAPIKey, forHTTPHeaderField: "x-api-key")
+        request.setValue(Config.AI.apiVersion, forHTTPHeaderField: "anthropic-version")
         
         let body: [String: Any] = [
-            "model": "claude-sonnet-4-20250514",
+            "model": Config.AI.textModel,  // Use configured model
             "max_tokens": 100,
             "messages": [
                 [
