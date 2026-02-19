@@ -903,7 +903,7 @@ class PokerViewModel: NSObject, ObservableObject {
             
             // Update stats on main thread
             DispatchQueue.main.async {
-                self.stats = PokerStats(
+                let newStats = PokerStats(
                     handStrength: handStrength,
                     handName: handName,
                     winRate: baseWinRate,
@@ -918,6 +918,19 @@ class PokerViewModel: NSObject, ObservableObject {
                     handEquity: handEquity,
                     foldEquity: foldEquity
                 )
+                
+                self.stats = newStats
+                
+                // Save to hand history
+                let hand = AnalyzedHand(
+                    gameMode: self.gameMode.rawValue,
+                    playerCount: self.playerCount,
+                    holeCards: self.holeCards,
+                    communityCards: self.communityCards,
+                    gameState: self.gameState,
+                    stats: newStats
+                )
+                HandHistoryManager.shared.saveHand(hand)
             }
         }
     }

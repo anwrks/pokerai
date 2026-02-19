@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var viewModel = PokerViewModel()
+    @State private var showHandHistory = false
     
     var body: some View {
         ZStack {
@@ -10,7 +11,7 @@ struct ContentView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(spacing: 24) {
-                        HeaderView(viewModel: viewModel)
+                        HeaderView(viewModel: viewModel, showHandHistory: $showHandHistory)
                         
                         PokerTableView(viewModel: viewModel)
                         
@@ -77,6 +78,9 @@ struct ContentView: View {
         .animation(.spring(response: 0.5, dampingFraction: 0.8), value: viewModel.holeCards)
         .animation(.spring(response: 0.5, dampingFraction: 0.8), value: viewModel.communityCards)
         .animation(.spring(response: 0.5, dampingFraction: 0.8), value: viewModel.stats)
+        .sheet(isPresented: $showHandHistory) {
+            HandHistoryView()
+        }
     }
 }
 
@@ -117,10 +121,11 @@ struct BackgroundView: View {
 // MARK: - Header
 struct HeaderView: View {
     @ObservedObject var viewModel: PokerViewModel
+    @Binding var showHandHistory: Bool
     
     var body: some View {
         VStack(spacing: 16) {
-            // Title and Reset
+            // Title and Buttons
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 8) {
@@ -144,6 +149,26 @@ struct HeaderView: View {
                 
                 Spacer()
                 
+                // History button
+                Button(action: {
+                    showHandHistory = true
+                }) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(.white)
+                        .padding(10)
+                        .background(
+                            LinearGradient(
+                                colors: [Color.cyan.opacity(0.8), Color.cyan],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .cornerRadius(12)
+                        .shadow(color: Color.cyan.opacity(0.3), radius: 8, x: 0, y: 4)
+                }
+                
+                // Reset button
                 Button(action: {
                     withAnimation(.spring()) {
                         viewModel.reset()
