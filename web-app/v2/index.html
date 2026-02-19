@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>AI Poker Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        
+        * {
+            -webkit-tap-highlight-color: transparent;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0a0e27 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .iphone-frame {
+            max-width: 428px;
+            margin: 0 auto;
+            background: #000;
+            border-radius: 40px;
+            padding: 12px;
+            box-shadow: 0 20px 80px rgba(0,0,0,0.9), 0 0 40px rgba(0,150,255,0.2);
+        }
+        
+        .iphone-screen {
+            background: linear-gradient(135deg, #0a0e27 0%, #16213e 50%, #0f3460 100%);
+            border-radius: 32px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .notch {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 180px;
+            height: 30px;
+            background: #000;
+            border-radius: 0 0 20px 20px;
+            z-index: 100;
+        }
+        
+        .status-bar {
+            height: 44px;
+            display: flex;
+            align-items: flex-end;
+            padding: 0 20px 6px;
+            color: white;
+            font-size: 12px;
+            justify-content: space-between;
+        }
+        
+        /* Card styles */
+        .card {
+            width: 70px;
+            height: 100px;
+            background: linear-gradient(145deg, #ffffff 0%, #f0f0f0 100%);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+            position: relative;
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+        
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+        }
+        
+        .card:active {
+            transform: scale(0.95);
+        }
+        
+        .card-rank {
+            font-size: 26px;
+            font-weight: 900;
+            line-height: 1;
+        }
+        
+        .card-suit {
+            font-size: 36px;
+            line-height: 1;
+            margin-top: 2px;
+        }
+        
+        .card-placeholder {
+            width: 70px;
+            height: 100px;
+            border: 2px dashed rgba(255,255,255,0.3);
+            border-radius: 10px;
+            background: rgba(255,255,255,0.05);
+            transition: all 0.3s;
+        }
+        
+        .card-placeholder:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: rgba(255,255,255,0.5);
+        }
+        
+        /* Glassmorphism */
+        .glass {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .glass-strong {
+            background: rgba(255,255,255,0.08);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+        
+        /* Animations */
+        @keyframes slideInUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(34, 211, 238, 0.4); }
+            50% { box-shadow: 0 0 40px rgba(34, 211, 238, 0.8); }
+        }
+        
+        @keyframes confetti {
+            0% { transform: translateY(0) rotate(0deg); }
+            100% { transform: translateY(100vh) rotate(720deg); }
+        }
+        
+        .slide-in-up {
+            animation: slideInUp 0.3s ease-out;
+        }
+        
+        .analyzing {
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+        
+        /* Progress bars */
+        .progress-bar {
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00d4ff, #00ffaa);
+            transition: width 0.5s ease-out;
+        }
+        
+        /* XP Bar */
+        .xp-bar {
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        
+        .xp-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ffd700, #ffaa00);
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+            transition: width 0.5s ease-out;
+        }
+        
+        /* Achievement badge */
+        .badge {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            background: linear-gradient(135deg, #ffd700 0%, #ffaa00 100%);
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+        }
+        
+        .badge.locked {
+            background: rgba(255,255,255,0.1);
+            filter: grayscale(1);
+            opacity: 0.5;
+        }
+        
+        /* Hand strength meter */
+        .strength-meter {
+            position: relative;
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .strength-fill {
+            height: 100%;
+            transition: width 0.5s, background 0.5s;
+        }
+        
+        /* Modal */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        
+        .modal.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        
+        .modal-content {
+            background: linear-gradient(135deg, #1a1f3a 0%, #2d3561 100%);
+            border-radius: 20px;
+            max-width: 90%;
+            max-height: 90vh;
+            overflow: auto;
+            transform: scale(0.9);
+            transition: transform 0.3s;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .modal.active .modal-content {
+            transform: scale(1);
+        }
+        
+        /* Buttons */
+        .btn {
+            padding: 14px 20px;
+            border-radius: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+            text-align: center;
+            cursor: pointer;
+            user-select: none;
+            border: none;
+        }
+        
+        .btn:active {
+            transform: scale(0.96);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #00d4ff 0%, #0096ff 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(0, 212, 255, 0.3);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #00ff88 0%, #00cc66 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ff3366 0%, #cc0033 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 51, 102, 0.3);
+        }
+        
+        /* Quick picker grid */
+        .quick-picker {
+            display: grid;
+            grid-template-columns: repeat(13, 1fr);
+            gap: 4px;
+        }
+        
+        .quick-card {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.1);
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .quick-card:hover {
+            background: rgba(255,255,255,0.2);
+            transform: scale(1.1);
+        }
+        
+        .quick-card.selected {
+            background: linear-gradient(135deg, #00d4ff 0%, #0096ff 100%);
+            color: white;
+        }
+        
+        .home-indicator {
+            height: 5px;
+            width: 134px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 3px;
+            margin: 8px auto;
+        }
+        
+        /* Confetti */
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            background: #ffd700;
+            animation: confetti 3s ease-out forwards;
+            z-index: 9999;
+        }
+        
+        /* Tooltip */
+        .tooltip {
+            position: absolute;
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 1000;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="iphone-frame">
+        <div class="iphone-screen">
+            <!-- Notch -->
+            <div class="notch"></div>
+            
+            <!-- Status Bar -->
+            <div class="status-bar">
+                <span id="time">9:41</span>
+                <span>📶 🔋 100%</span>
+            </div>
+            
+            <!-- Content -->
+            <div class="px-4 pb-6" style="min-height: calc(100vh - 120px); padding-top: 50px;">
+                <!-- Header with Level & XP -->
+                <div class="glass-strong rounded-2xl p-4 mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-3">
+                            <div class="text-3xl">♠️</div>
+                            <div>
+                                <h1 class="text-xl font-bold text-white">Poker AI Pro</h1>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <div class="px-2 py-0.5 bg-gradient-to-r from-yellow-500 to-yellow-600 rounded text-xs font-bold text-white">
+                                        LVL <span id="player-level">1</span>
+                                    </div>
+                                    <div class="text-xs text-gray-300" id="player-tier">Bronze</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-2">
+                            <button onclick="showAchievements()" class="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center text-white relative">
+                                🏆
+                                <span class="absolute -top-1 -right-1 bg-yellow-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold" id="achievement-count">0</span>
+                            </button>
+                            <button onclick="showStats()" class="w-10 h-10 bg-cyan-600 rounded-full flex items-center justify-center text-white">
+                                📊
+                            </button>
+                            <button onclick="showHistory()" class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white relative">
+                                ⏱
+                                <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold" id="badge">0</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- XP Progress Bar -->
+                    <div>
+                        <div class="flex items-center justify-between text-xs text-gray-300 mb-1">
+                            <span id="xp-text">0/100 XP</span>
+                            <span>+<span id="last-xp">0</span> XP</span>
+                        </div>
+                        <div class="xp-bar">
+                            <div class="xp-fill" id="xp-fill" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Quick Settings -->
+                <div class="glass rounded-xl p-3 mb-4 flex gap-2">
+                    <select id="game-mode" class="flex-1 bg-white/10 border border-white/20 text-white text-sm rounded-lg px-3 py-2">
+                        <option value="holdem">Hold'em</option>
+                        <option value="omaha-high">Omaha High</option>
+                        <option value="omaha-hilo">Omaha Hi-Lo</option>
+                    </select>
+                    
+                    <select id="player-count" class="bg-white/10 border border-white/20 text-white text-sm rounded-lg px-3 py-2">
+                        <option value="2">2P</option>
+                        <option value="3">3P</option>
+                        <option value="4">4P</option>
+                        <option value="5">5P</option>
+                        <option value="6">6P</option>
+                        <option value="7">7P</option>
+                        <option value="8">8P</option>
+                        <option value="9">9P</option>
+                    </select>
+                    
+                    <button onclick="toggleQuickPicker()" class="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold">
+                        ⚡ Quick
+                    </button>
+                </div>
+                
+                <!-- Main content will be injected here -->
+                <div id="app-content"></div>
+            </div>
+            
+            <!-- Home Indicator -->
+            <div class="home-indicator"></div>
+        </div>
+    </div>
+    
+    <!-- Modals will be added by JS -->
+    <div id="modals-container"></div>
+    
+    <script src="app-v2.js"></script>
+</body>
+</html>
