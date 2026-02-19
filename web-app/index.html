@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Poker - Hand Analyzer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        poker: {
+                            dark: '#0a0f14',
+                            darker: '#0d1a16',
+                            darkest: '#001a0d',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background: linear-gradient(135deg, rgb(26, 26, 38) 0%, rgb(13, 38, 26) 50%, rgb(0, 26, 13) 100%);
+            min-height: 100vh;
+        }
+        
+        .grid-pattern {
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+        
+        .card-mini {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            background: white;
+            color: black;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        
+        .card-mini.red { color: #dc2626; }
+        
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(34, 211, 238, 0.3); }
+            50% { box-shadow: 0 0 30px rgba(34, 211, 238, 0.6); }
+        }
+        
+        .analyzing {
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="grid-pattern">
+    <div id="app" class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center gap-3">
+                    <div class="text-4xl">♠️</div>
+                    <div>
+                        <h1 class="text-3xl font-bold text-white">AI Poker Analyzer</h1>
+                        <p class="text-gray-400 text-sm">Web Edition - Upload cards or enter manually</p>
+                    </div>
+                </div>
+                
+                <div class="flex gap-3">
+                    <button onclick="showHistory()" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg flex items-center gap-2 transition">
+                        <span>📊</span>
+                        <span>History</span>
+                        <span class="bg-cyan-800 px-2 py-1 rounded text-xs" id="hand-count">0</span>
+                    </button>
+                    <button onclick="resetApp()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg flex items-center gap-2 transition">
+                        <span>🔄</span>
+                        <span>Reset</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Settings -->
+            <div class="bg-white/5 rounded-xl p-4 border border-white/10">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-gray-300 text-sm mb-2">Game Mode</label>
+                        <select id="game-mode" class="w-full bg-white/10 border border-white/20 text-white rounded-lg px-4 py-2">
+                            <option value="holdem">Texas Hold'em</option>
+                            <option value="omaha-high">Omaha High</option>
+                            <option value="omaha-hilo">Omaha Hi-Lo</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-300 text-sm mb-2">Players at Table</label>
+                        <select id="player-count" class="w-full bg-white/10 border border-white/20 text-white rounded-lg px-4 py-2">
+                            <option value="2">2 (Heads-Up)</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="6">6</option>
+                            <option value="7">7</option>
+                            <option value="8">8</option>
+                            <option value="9">9 (Full Table)</option>
+                            <option value="10">10</option>
+                            <option value="11">11</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-300 text-sm mb-2">API Key Status</label>
+                        <div id="api-status" class="px-4 py-2 bg-yellow-600/20 border border-yellow-600/30 text-yellow-400 rounded-lg text-sm">
+                            Not configured
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Left: Card Input -->
+            <div class="space-y-6">
+                <!-- Hole Cards -->
+                <div class="bg-white/5 rounded-xl p-6 border border-cyan-600/30">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <span>👤</span>
+                            Your Hand
+                        </h2>
+                        <span class="text-cyan-400 text-sm" id="hole-count">0/2</span>
+                    </div>
+                    
+                    <div id="hole-cards" class="flex gap-3 mb-4 min-h-[120px] items-center justify-center">
+                        <div class="text-gray-500">No cards yet - enter below or upload image</div>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <button onclick="showManualEntry('hole')" class="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
+                            ✏️ Manual Entry
+                        </button>
+                        <label class="w-full px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition cursor-pointer text-center block">
+                            📷 Upload Image
+                            <input type="file" accept="image/*" onchange="uploadCards('hole', this)" class="hidden">
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Community Cards -->
+                <div class="bg-white/5 rounded-xl p-6 border border-green-600/30">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <span>🃏</span>
+                            Community Cards
+                        </h2>
+                        <span class="text-green-400 text-sm" id="community-count">0/5</span>
+                    </div>
+                    
+                    <div id="community-cards" class="flex gap-3 mb-4 min-h-[120px] items-center justify-center">
+                        <div class="text-gray-500">No cards yet</div>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <button onclick="showManualEntry('community')" class="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
+                            ✏️ Manual Entry
+                        </button>
+                        <label class="w-full px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition cursor-pointer text-center block">
+                            📷 Upload Image
+                            <input type="file" accept="image/*" onchange="uploadCards('community', this)" class="hidden">
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right: Analysis -->
+            <div id="analysis-panel" class="space-y-6">
+                <div class="bg-white/5 rounded-xl p-8 border border-white/10 text-center">
+                    <div class="text-gray-400 mb-4">
+                        <div class="text-6xl mb-4">🎴</div>
+                        <p class="text-lg">Enter your cards to see AI analysis</p>
+                        <p class="text-sm mt-2">Upload images or use manual entry</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Manual Entry Modal -->
+        <div id="manual-modal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50" onclick="closeModal(event)">
+            <div class="bg-gray-900 rounded-xl p-6 max-w-md w-full mx-4" onclick="event.stopPropagation()">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold text-white">Enter Card</h3>
+                    <button onclick="closeModal()" class="text-gray-400 hover:text-white">✕</button>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-gray-300 text-sm mb-2">Rank</label>
+                    <div class="grid grid-cols-7 gap-2">
+                        <button onclick="selectRank('A')" class="rank-btn px-3 py-2 bg-white/10 hover:bg-purple-600 text-white rounded">A</button>
+                        <button onclick="selectRank('K')" class="rank-btn px-3 py-2 bg-white/10 hover:bg-purple-600 text-white rounded">K</button>
+                        <button onclick="selectRank('Q')" class="rank-btn px-3 py-2 bg-white/10 hover:bg-purple-600 text-white rounded">Q</button>
+                        <button onclick="selectRank('J')" class="rank-btn px-3 py-2 bg-white/10 hover:bg-purple-600 text-white rounded">J</button>
+                        <button onclick="selectRank('10')" class="rank-btn px-3 py-2 bg-white/10 hover:bg-purple-600 text-white rounded">10</button>
+                        <button onclick="selectRank('9')" class="rank-btn px-3 py-2 bg-white/10 hover:bg-purple-600 text-white rounded">9</button>
+                        <button onclick="selectRank('8')" class="rank-btn px-3 py-2 bg-white/10 hover:bg-purple-600 text-white rounded">8</button>
+                        <button onclick="selectRank('7')" class="rank-btn px-3 py-2 bg-white/10 hover:bg-purple-600 text-white rounded">7</button>
+                        <button onclick="selectRank('6')" class="rank-btn px-3 py-2 bg-white/10 hover:bg-purple-600 text-white rounded">6</button>
+                        <button onclick="selectRank('5')" class="rank-btn px-3 py-2 bg-white/10 hover:bg-purple-600 text-white rounded">5</button>
+                        <button onclick="selectRank('4')" class="rank-btn px-3 py-2 bg-white/10 hover:bg-purple-600 text-white rounded">4</button>
+                        <button onclick="selectRank('3')" class="rank-btn px-3 py-2 bg-white/10 hover:bg-purple-600 text-white rounded">3</button>
+                        <button onclick="selectRank('2')" class="rank-btn px-3 py-2 bg-white/10 hover:bg-purple-600 text-white rounded">2</button>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-gray-300 text-sm mb-2">Suit</label>
+                    <div class="grid grid-cols-4 gap-2">
+                        <button onclick="selectSuit('S')" class="suit-btn px-4 py-3 bg-white/10 hover:bg-purple-600 text-white rounded text-2xl">♠</button>
+                        <button onclick="selectSuit('H')" class="suit-btn px-4 py-3 bg-white/10 hover:bg-purple-600 text-red-500 rounded text-2xl">♥</button>
+                        <button onclick="selectSuit('D')" class="suit-btn px-4 py-3 bg-white/10 hover:bg-purple-600 text-red-500 rounded text-2xl">♦</button>
+                        <button onclick="selectSuit('C')" class="suit-btn px-4 py-3 bg-white/10 hover:bg-purple-600 text-white rounded text-2xl">♣</button>
+                    </div>
+                </div>
+                
+                <div class="flex gap-2">
+                    <button onclick="removeLastCard()" class="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded">Undo</button>
+                    <button onclick="closeModal()" class="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded">Done</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- History Modal -->
+        <div id="history-modal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50" onclick="closeHistoryModal(event)">
+            <div class="bg-gray-900 rounded-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-auto" onclick="event.stopPropagation()">
+                <div class="sticky top-0 bg-gray-900 border-b border-white/10 p-6 flex justify-between items-center">
+                    <h3 class="text-2xl font-bold text-white">Hand History</h3>
+                    <button onclick="closeHistoryModal()" class="text-gray-400 hover:text-white text-2xl">✕</button>
+                </div>
+                
+                <div id="history-content" class="p-6">
+                    <!-- Will be populated by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>
