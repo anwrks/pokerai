@@ -17,6 +17,13 @@ const state = {
 // Initialize
 function init() {
     console.log('🎮 Initializing AI Poker...');
+    
+    // Auto-configure API key for testing
+    if (!localStorage.getItem('anthropic_api_key')) {
+        localStorage.setItem('anthropic_api_key', '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');
+        console.log('✅ API key auto-configured');
+    }
+    
     loadAPIKey();
     loadHistory();
     updateBadge();
