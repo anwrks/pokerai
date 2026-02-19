@@ -921,3 +921,207 @@ if (document.readyState === 'loading') {
 } else {
     init();
 }
+
+// ===== NUTS CALCULATOR =====
+function calculateNuts(communityCards) {
+    if (communityCards.length < 3) {
+        return {handName: 'Waiting for flop...', description: 'Need at least 3 community cards'};
+    }
+    
+    // Extract board info
+    const ranks = communityCards.map(c => c.slice(0, -1));
+    const suits = communityCards.map(c => c.slice(-1));
+    
+    const rankCounts = {};
+    const suitCounts = {};
+    
+    communityCards.forEach(c => {
+        const r = c.slice(0, -1);
+        const s = c.slice(-1);
+        rankCounts[r] = (rankCounts[r] || 0) + 1;
+        suitCounts[s] = (suitCounts[s] || 0) + 1;
+    });
+    
+    const maxRankCount = Math.max(...Object.values(rankCounts));
+    const maxSuitCount = Math.max(...Object.values(suitCounts));
+    const hasPair = maxRankCount >= 2;
+    const hasThree = maxRankCount >= 3;
+    
+    // Check for possible hands
+    
+    // Straight flush possible?
+    if (maxSuitCount >= 3) {
+        const flushSuit = Object.keys(suitCounts).find(s => suitCounts[s] >= 3);
+        const flushCards = communityCards.filter(c => c.endsWith(flushSuit));
+        const flushRanks = flushCards.map(c => rankValue(c.slice(0, -1)));
+        
+        // Check for straight possibilities with this suit
+        const uniqueFlushRanks = [...new Set(flushRanks)].sort((a,b) => b - a);
+        
+        // If we have potential for straight flush
+        if (uniqueFlushRanks.length >= 3) {
+            // Check if broadway (AKQJT) possible
+            const broadway = [14, 13, 12, 11, 10];
+            const hasAnyBroadway = broadway.some(r => uniqueFlushRanks.includes(r));
+            
+            if (hasAnyBroadway || uniqueFlushRanks[0] - uniqueFlushRanks[uniqueFlushRanks.length - 1] <= 4) {
+                return {
+                    handName: 'Straight Flush',
+                    description: `Need 2 cards in ${getSuitSymbol(flushSuit)} that make a straight`
+                };
+            }
+        }
+    }
+    
+    // Four of a kind possible?
+    if (hasThree) {
+        const tripRank = Object.keys(rankCounts).find(r => rankCounts[r] === 3);
+        return {
+            handName: 'Four of a Kind',
+            description: `Need the ${tripRank} to complete quads`
+        };
+    }
+    
+    if (hasPair) {
+        const pairRank = Object.keys(rankCounts).find(r => rankCounts[r] >= 2);
+        const pairs = Object.keys(rankCounts).filter(r => rankCounts[r] === 2);
+        
+        if (pairs.length >= 2) {
+            return {
+                handName: 'Full House',
+                description: `Need to pair any rank on board or make trips`
+            };
+        } else {
+            return {
+                handName: 'Full House',
+                description: `Need ${pairRank} for trips, or another pair`
+            };
+        }
+    }
+    
+    // Flush possible?
+    if (maxSuitCount >= 3) {
+        const flushSuit = Object.keys(suitCounts).find(s => suitCounts[s] === maxSuitCount);
+        return {
+            handName: 'Flush',
+            description: `Need 2 ${getSuitSymbol(flushSuit)} cards (Ace-high best)`
+        };
+    }
+    
+    // Straight possible?
+    const boardRanks = communityCards.map(c => rankValue(c.slice(0, -1)));
+    const uniqueRanks = [...new Set(boardRanks)].sort((a,b) => b - a);
+    
+    if (uniqueRanks.length >= 3) {
+        // Check for broadway possibility
+        const hasBroadwayCards = [14, 13, 12, 11, 10].filter(r => uniqueRanks.includes(r)).length;
+        
+        if (hasBroadwayCards >= 3) {
+            return {
+                handName: 'Straight',
+                description: 'Need AKQJT (Broadway) or other straight'
+            };
+        }
+        
+        return {
+            handName: 'Straight',
+            description: 'Need 2 cards that make 5 in a row'
+        };
+    }
+    
+    // Three of a kind
+    if (hasPair) {
+        const pairRank = Object.keys(rankCounts).find(r => rankCounts[r] === 2);
+        return {
+            handName: 'Three of a Kind',
+            description: `Need ${pairRank} for trips, or pocket pair`
+        };
+    }
+    
+    // Two pair
+    return {
+        handName: 'Two Pair',
+        description: 'Need pocket pair or hit 2 ranks on board'
+    };
+}
+
+function rankValue(rank) {
+    return {'A':14,'K':13,'Q':12,'J':11,'10':10,'9':9,'8':8,'7':7,'6':6,'5':5,'4':4,'3':3,'2':2}[rank] || 0;
+}
+
+function getSuitSymbol(suit) {
+    return {S: '♠', H: '♥', D: '♦', C: '♣'}[suit] || suit;
+}
+
+// Override renderAnalysis to include nuts
+const originalRenderAnalysis = renderAnalysis;
+renderAnalysis = function(analysis) {
+    const colorMap = {1:'red',2:'red',3:'orange',4:'yellow',5:'yellow',6:'green',7:'green',8:'green',9:'green'};
+    const color = colorMap[analysis.handStrength];
+    const strengthPercent = (analysis.handStrength / 9) * 100;
+    
+    // Calculate nuts
+    const nuts = calculateNuts(state.communityCards);
+    const hasNuts = analysis.handName === nuts.handName && analysis.adjustedWinRate === 100;
+    
+    return `
+        <div class="space-y-3 animate__animated animate__fadeIn">
+            <!-- Hand Name -->
+            <div class="glass-strong rounded-xl p-4 text-center ${hasNuts ? 'bg-yellow-600/20' : ''}">
+                <div class="text-xs text-gray-400 mb-1">Your Hand</div>
+                <div class="text-3xl font-black text-${color}-400 mb-2">
+                    ${analysis.handName}
+                    ${hasNuts ? '<span class="text-yellow-400 ml-2">👑</span>' : ''}
+                </div>
+                <div class="strength-meter mt-2">
+                    <div class="strength-fill bg-gradient-to-r from-${color}-500 to-${color}-600" style="width: ${strengthPercent}%"></div>
+                </div>
+                <div class="text-xs text-gray-300 mt-1">Strength: ${analysis.handStrength}/9</div>
+            </div>
+            
+            <!-- The Nuts Display -->
+            <div class="glass rounded-xl p-3 bg-yellow-600/10 border-yellow-600/30">
+                <div class="flex items-start gap-2">
+                    <div class="text-2xl">👑</div>
+                    <div class="flex-1">
+                        <div class="text-xs text-yellow-400 font-bold mb-1">THE NUTS</div>
+                        <div class="text-sm font-bold text-white">${nuts.handName}</div>
+                        <div class="text-xs text-gray-400 mt-1">${nuts.description}</div>
+                        ${hasNuts ? '<div class="text-xs text-yellow-400 mt-2">🎉 You have it!</div>' : ''}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-2 gap-2">
+                <div class="glass rounded-xl p-3 text-center">
+                    <div class="text-xs text-gray-400">Win Rate</div>
+                    <div class="text-3xl font-black text-cyan-400">${analysis.adjustedWinRate}%</div>
+                    <div class="text-xs text-gray-500">vs ${state.playerCount - 1}</div>
+                </div>
+                
+                <div class="glass rounded-xl p-3 text-center">
+                    <div class="text-xs text-gray-400">Outs</div>
+                    <div class="text-3xl font-black text-orange-400">${analysis.outs}</div>
+                    <div class="text-xs text-gray-500">${state.communityCards.length === 5 ? 'River' : 'to improve'}</div>
+                </div>
+            </div>
+            
+            <!-- Recommendation -->
+            <div class="glass rounded-xl p-4 text-center bg-${analysis.recommendation.color}-600/20">
+                <div class="text-xs text-gray-400 mb-1">Recommendation</div>
+                <div class="text-2xl font-black text-${analysis.recommendation.color}-400">${analysis.recommendation.action}</div>
+            </div>
+            
+            <!-- AI Commentary -->
+            <div class="glass rounded-xl p-3">
+                <div class="text-xs text-gray-400 mb-1 flex items-center gap-1">
+                    <span>🧠</span> AI Analysis
+                </div>
+                <div class="text-xs text-gray-300">${getCommentary(analysis)}</div>
+            </div>
+        </div>
+    `;
+};
+
+console.log('✅ Nuts calculator added!');
