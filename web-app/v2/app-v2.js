@@ -103,6 +103,30 @@ function init() {
     console.log('📊 Level:', state.level, '| XP:', state.xp, '| Tier:', state.tier);
 }
 
+// ===== MODE SWITCHING =====
+function switchMode(mode) {
+    console.log(`🔄 Switching to ${mode} mode`);
+    
+    // Update button states
+    if (mode === 'game') {
+        document.getElementById('analyzer-btn').className = 'flex-1 px-3 py-2 bg-white/10 text-white rounded-lg text-xs font-bold';
+        document.getElementById('game-btn').className = 'flex-1 px-3 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg text-xs font-bold';
+        
+        // Start the game (renderGameUI will take over app-content)
+        if (typeof startGame === 'function') {
+            startGame();
+        } else {
+            alert('Game mode not loaded yet!');
+        }
+    } else {
+        document.getElementById('analyzer-btn').className = 'flex-1 px-3 py-2 bg-gradient-to-r from-cyan-600 to-cyan-700 text-white rounded-lg text-xs font-bold';
+        document.getElementById('game-btn').className = 'flex-1 px-3 py-2 bg-white/10 text-white rounded-lg text-xs font-bold';
+        
+        // Re-render analyzer UI
+        renderApp();
+    }
+}
+
 // ===== RENDER APP =====
 function renderApp() {
     const container = document.getElementById('app-content');
