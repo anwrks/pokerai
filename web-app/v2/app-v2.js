@@ -205,27 +205,88 @@ function autoAnalyze() {
     if (panel) panel.innerHTML = renderAnalysisPanel(state.currentAnalysis);
 }
 
-// === CARD PICKER ===
+// === CARD PICKER (two-step: rank then suit) ===
 function openPicker(target) {
     state.pickerTarget = target;
-    const used = [...state.holeCards, ...state.communityCards];
-    const suits = [{sym:'♠',c:0,col:'#e2e8f0'},{sym:'♥',c:1,col:'#ef4444'},{sym:'♦',c:2,col:'#3b82f6'},{sym:'♣',c:3,col:'#22c55e'}];
+    state.pickerRank = null;
+    showRankPicker();
+}
+
+function showRankPicker() {
+    const target = state.pickerTarget;
     const ranks = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
-    let grid = '<div class="picker-grid">';
-    suits.forEach(s => {
-        grid += `<div class="picker-row"><div class="picker-suit-label" style="color:${s.col}">${s.sym}</div>`;
-        ranks.forEach(r => {
-            const card = r + PokerEngine.SUIT_SYMBOLS[s.c];
-            const u = used.includes(card);
-            grid += `<button class="picker-card${u?' used':''}" ${u?'disabled':`onclick="pickCard('${card}')"`} style="color:${s.col}">${r}</button>`;
-        });
-        grid += '</div>';
+    const used = [...state.holeCards, ...state.communityCards];
+
+    // Check which ranks are fully used (all 4 suits taken)
+    const rankUsedCount = {};
+    ranks.forEach(r => { rankUsedCount[r] = 0; });
+    used.forEach(card => {
+        const r = card.slice(0, -1);
+        if (rankUsedCount[r] !== undefined) rankUsedCount[r]++;
     });
-    grid += '</div>';
-    showModal(`<div style="padding:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-        <h3 style="font-weight:700;font-size:15px">Pick ${target==='hole'?'Hole':'Community'} Cards</h3>
-        <button onclick="closeModal()" style="background:none;border:none;color:var(--dim);font-size:24px;cursor:pointer">&times;</button>
-    </div>${grid}</div>`);
+
+    showModal(`<div style="padding:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <h3 style="font-weight:700;font-size:17px">Pick ${target==='hole'?'Hole':'Community'} Card</h3>
+            <button onclick="closeModal()" style="background:none;border:none;color:var(--dim);font-size:28px;cursor:pointer;padding:4px">&times;</button>
+        </div>
+        <div style="font-size:12px;color:var(--dim);margin-bottom:12px">Step 1: Choose rank</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+            ${ranks.map(r => {
+                const allUsed = rankUsedCount[r] >= 4;
+                return `<button onclick="pickRank('${r}')" style="
+                    padding:16px 8px;border-radius:12px;border:2px solid rgba(255,255,255,0.12);
+                    background:rgba(255,255,255,0.06);color:${allUsed?'rgba(255,255,255,0.15)':'white'};
+                    font-size:22px;font-weight:900;font-family:Georgia,serif;
+                    cursor:${allUsed?'not-allowed':'pointer'};transition:all 0.15s;
+                " ${allUsed?'disabled':''}>${r}</button>`;
+            }).join('')}
+        </div>
+    </div>`);
+}
+
+function pickRank(rank) {
+    state.pickerRank = rank;
+    showSuitPicker(rank);
+}
+
+function showSuitPicker(rank) {
+    const target = state.pickerTarget;
+    const used = [...state.holeCards, ...state.communityCards];
+    const suits = [
+        { sym: '♠', code: 0, name: 'Spades', color: '#e2e8f0', bg: 'rgba(226,232,240,0.1)' },
+        { sym: '♥', code: 1, name: 'Hearts', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' },
+        { sym: '♦', code: 2, name: 'Diamonds', color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
+        { sym: '♣', code: 3, name: 'Clubs', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
+    ];
+
+    showModal(`<div style="padding:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <div>
+                <h3 style="font-weight:700;font-size:17px">Pick Suit for ${rank}</h3>
+                <button onclick="showRankPicker()" style="background:none;border:none;color:var(--cyan);font-size:13px;cursor:pointer;padding:0;margin-top:2px">← Back to ranks</button>
+            </div>
+            <button onclick="closeModal()" style="background:none;border:none;color:var(--dim);font-size:28px;cursor:pointer;padding:4px">&times;</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px">
+            ${suits.map(s => {
+                const card = rank + s.sym;
+                const isUsed = used.includes(card);
+                return `<button onclick="pickCard('${card}')" style="
+                    padding:24px 16px;border-radius:14px;
+                    border:2px solid ${isUsed?'rgba(255,255,255,0.05)':s.color+'40'};
+                    background:${isUsed?'rgba(255,255,255,0.02)':s.bg};
+                    color:${isUsed?'rgba(255,255,255,0.12)':s.color};
+                    cursor:${isUsed?'not-allowed':'pointer'};transition:all 0.15s;
+                    display:flex;flex-direction:column;align-items:center;gap:6px;
+                " ${isUsed?'disabled':''}>
+                    <span style="font-size:36px">${s.sym}</span>
+                    <span style="font-size:13px;font-weight:700">${rank}${s.sym}</span>
+                    ${isUsed?'<span style="font-size:10px">used</span>':''}
+                </button>`;
+            }).join('')}
+        </div>
+    </div>`);
 }
 
 function pickCard(card) {
@@ -238,7 +299,7 @@ function pickCard(card) {
         if (state.communityCards.length >= 5) { closeModal(); renderAnalyzer(); autoAnalyze(); return; }
     }
     renderAnalyzer(); autoAnalyze();
-    openPicker(state.pickerTarget);
+    showRankPicker(); // Go back to rank picker for next card
 }
 
 function clearACards(type) {
