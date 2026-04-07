@@ -17,6 +17,9 @@ let game = {
     minRaise: 20,
     initialized: false,
     gameType: 'holdem', // 'holdem', 'omaha', 'omaha-hilo'
+    // Cached analysis for live coaching
+    liveAnalysis: null,
+    liveAnalysisStreet: null,
 };
 
 const BOT_PROFILES = [
@@ -122,6 +125,7 @@ function dealNewHand() {
     game.street = 'preflop'; game.handOver = false;
     game.showdownResults = null; game.lastAction = '';
     game.minRaise = game.blinds.big;
+    game.liveAnalysis = null; game.liveAnalysisStreet = null;
 
     game.deck = PokerEngine.shuffle(PokerEngine.createDeck());
 
@@ -231,6 +235,7 @@ function advanceAction() {
 function nextStreet() {
     game.players.forEach(p => { p.bet = 0; p.hasActed = false; });
     game.currentBet = 0; game.minRaise = game.blinds.big;
+    game.liveAnalysis = null; // Reset coaching cache for new street
     const canBet = game.players.filter(p => !p.folded && !p.allIn).length >= 2;
 
     switch (game.street) {
@@ -412,6 +417,7 @@ function setGameType(type) {
 function doBotAction() {
     const bot = game.players[game.currentPlayer];
     if (!bot || !bot.isBot || bot.folded || bot.allIn) { advanceAction(); return; }
+    game.liveAnalysis = null; // Invalidate coaching cache when action changes
 
     const callAmount = game.currentBet - bot.bet;
     let strength;
@@ -494,6 +500,141 @@ function doBotRaise(bot, total) {
     resetActed(bot);
 }
 
+// === LIVE COACHING ===
+function getLiveAnalysis(human) {
+    // Cache: only recalculate when street changes
+    if (game.liveAnalysis && game.liveAnalysisStreet === game.street) {
+        return game.liveAnalysis;
+    }
+
+    const cards = human.cards;
+    const board = game.communityCards;
+    const numOpp = game.players.filter(p => !p.folded && p !== human).length;
+    if (numOpp === 0) return null;
+
+    let hand, equity, outs, lowStr = null;
+
+    if (board.length >= 3) {
+        hand = evalPlayerHand(cards, board);
+        // Quick equity with fewer iterations for speed
+        const isOmaha = game.gameType !== 'holdem';
+        equity = isOmaha
+            ? PokerEngine.calculateOmahaEquity(cards, board, numOpp, 400)
+            : PokerEngine.calculateEquity(cards, board, numOpp, 500);
+        outs = isOmaha
+            ? PokerEngine.calculateOmahaOuts(cards, board)
+            : PokerEngine.calculateOuts(cards, board);
+        if (game.gameType === 'omaha-hilo') {
+            const low = evalPlayerLow(cards, board);
+            lowStr = low ? PokerEngine.lowToString(low) : null;
+        }
+    } else {
+        // Preflop
+        const strength = PokerEngine.preflopStrength(cards);
+        hand = { handName: cards.length === 4 ? '4 Hole Cards' : 'Hole Cards', handRank: -1 };
+        // Rough preflop equity estimate
+        const isOmaha = game.gameType !== 'holdem';
+        equity = isOmaha
+            ? PokerEngine.calculateOmahaEquity(cards, [], numOpp, 300)
+            : PokerEngine.calculateEquity(cards, [], numOpp, 400);
+        outs = { outs: '-' };
+    }
+
+    // Recommendation
+    const callAmt = game.currentBet - human.bet;
+    const potOdds = callAmt > 0 ? Math.round((callAmt / (game.pot + callAmt)) * 100) : 0;
+    let rec, recColor, recIcon;
+
+    if (equity.equity >= 70) {
+        rec = 'Raise'; recColor = '#22c55e'; recIcon = '🚀';
+    } else if (equity.equity >= 50) {
+        rec = callAmt > 0 ? 'Call' : 'Bet'; recColor = '#3b82f6'; recIcon = '✅';
+    } else if (equity.equity >= 30) {
+        rec = callAmt > 0 ? 'Call (cautious)' : 'Check'; recColor = '#f59e0b'; recIcon = '⚠️';
+    } else {
+        rec = callAmt > 0 ? 'Fold' : 'Check'; recColor = '#ef4444'; recIcon = '🛑';
+    }
+
+    // Pot odds tip
+    let potOddsTip = '';
+    if (callAmt > 0 && board.length >= 3 && board.length < 5 && typeof outs.outs === 'number' && outs.outs > 0) {
+        const outsEquity = Math.round(outs.outs * (board.length === 3 ? 4 : 2));
+        potOddsTip = outsEquity > potOdds
+            ? `Pot odds ${potOdds}% < outs equity ~${outsEquity}% — profitable call`
+            : `Pot odds ${potOdds}% > outs equity ~${outsEquity}% — risky call`;
+    }
+
+    // Commentary
+    let tip = '';
+    if (board.length === 0) {
+        const s = PokerEngine.preflopStrength(cards);
+        if (s >= 0.7) tip = 'Premium hand — raise for value and thin the field.';
+        else if (s >= 0.45) tip = 'Solid starting hand — raise or call depending on position.';
+        else if (s >= 0.3) tip = 'Marginal hand — play carefully, consider folding to raises.';
+        else tip = 'Weak hand — fold to aggression, or steal from late position.';
+    } else if (hand.handRank >= 6) {
+        tip = `${hand.handName} is very strong. Bet big for value.`;
+    } else if (hand.handRank >= 4) {
+        tip = `${hand.handName}. Solid hand — bet for protection or value.`;
+    } else if (hand.handRank >= 2) {
+        tip = `${hand.handName}. Decent but vulnerable. Size your bets carefully.`;
+    } else if (typeof outs.outs === 'number' && outs.outs >= 8) {
+        tip = `${hand.handName} but ${outs.outs} outs to improve. Good draw — consider calling.`;
+    } else {
+        tip = `${hand.handName}. Weak holding — check or fold to pressure.`;
+    }
+
+    if (lowStr) tip += ` You have a qualifying low (${lowStr}) — extra value!`;
+
+    const analysis = { hand, equity, outs, rec, recColor, recIcon, tip, potOddsTip, lowStr };
+    game.liveAnalysis = analysis;
+    game.liveAnalysisStreet = game.street;
+    return analysis;
+}
+
+function renderLiveCoach(human) {
+    const a = getLiveAnalysis(human);
+    if (!a) return '';
+
+    const board = game.communityCards;
+    const handName = board.length >= 3 ? a.hand.handName : null;
+
+    return `
+        <div style="margin-top:10px;border-top:1px solid rgba(255,255,255,0.08);padding-top:10px">
+            <!-- Hand + Recommendation row -->
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                ${handName ? `<span style="font-size:14px;color:var(--cyan);font-weight:800;flex:1">${handName}</span>` :
+                  `<span style="font-size:13px;color:var(--dim);flex:1">Preflop</span>`}
+                ${a.lowStr ? `<span style="font-size:11px;color:var(--green);font-weight:600">Low: ${a.lowStr}</span>` :
+                  game.gameType === 'omaha-hilo' && board.length >= 3 ? '<span style="font-size:11px;color:var(--dim)">No low</span>' : ''}
+                <span style="font-size:14px;font-weight:800;color:${a.recColor}">${a.recIcon} ${a.rec}</span>
+            </div>
+
+            <!-- Stats row -->
+            <div style="display:flex;gap:6px;margin-bottom:8px">
+                <div style="flex:1;background:rgba(255,255,255,0.04);border-radius:8px;padding:8px;text-align:center">
+                    <div style="font-size:10px;color:var(--dim)">Equity</div>
+                    <div style="font-size:18px;font-weight:900;color:var(--cyan)">${a.equity.equity}%</div>
+                </div>
+                <div style="flex:1;background:rgba(255,255,255,0.04);border-radius:8px;padding:8px;text-align:center">
+                    <div style="font-size:10px;color:var(--dim)">Win</div>
+                    <div style="font-size:18px;font-weight:900;color:var(--green)">${a.equity.winPct}%</div>
+                </div>
+                <div style="flex:1;background:rgba(255,255,255,0.04);border-radius:8px;padding:8px;text-align:center">
+                    <div style="font-size:10px;color:var(--dim)">Outs</div>
+                    <div style="font-size:18px;font-weight:900;color:var(--gold)">${a.outs.outs}</div>
+                </div>
+            </div>
+
+            <!-- Tip -->
+            <div style="background:rgba(255,255,255,0.03);border-radius:8px;padding:8px 10px">
+                <div style="font-size:11px;color:var(--dim);margin-bottom:3px">🧠 COACH</div>
+                <div style="font-size:12px;color:var(--text);line-height:1.5">${a.tip}</div>
+                ${a.potOddsTip ? `<div style="font-size:11px;color:var(--cyan);margin-top:4px">${a.potOddsTip}</div>` : ''}
+            </div>
+        </div>`;
+}
+
 // === RENDER ===
 function renderGame() {
     const c = document.getElementById('app-content');
@@ -566,15 +707,7 @@ function renderGame() {
             <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
                 ${human.cards.map(card => renderCardHTML(card)).join('')}
             </div>
-            ${game.communityCards.length >= 3 && !human.folded ? (() => {
-                const high = evalPlayerHand(human.cards, game.communityCards);
-                const lowStr = game.gameType === 'omaha-hilo' ? evalPlayerLow(human.cards, game.communityCards) : null;
-                return `<div style="text-align:center;margin-top:8px">
-                    <span style="font-size:13px;color:var(--cyan);font-weight:700">${high.handName}</span>
-                    ${lowStr ? `<span style="font-size:12px;color:var(--green);margin-left:8px">Low: ${PokerEngine.lowToString(lowStr)}</span>` :
-                      game.gameType === 'omaha-hilo' ? '<span style="font-size:11px;color:var(--dim);margin-left:8px">No low</span>' : ''}
-                </div>`;
-            })() : ''}
+            ${!human.folded ? renderLiveCoach(human) : ''}
         </div>
 
         <!-- Actions -->
