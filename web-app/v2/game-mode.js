@@ -405,7 +405,6 @@ function doShowdown() {
     const humanWonLow = sw.lowWinners && sw.lowWinners.some(w => w.player.isHuman);
     if (humanWonHigh || humanWonLow) {
         celebrate(); addXP(50);
-        if (!state.achievements.gameWin) unlockAch('gameWin');
     } else {
         addXP(5);
     }
@@ -417,7 +416,7 @@ function endHand(winner) {
     game.showdownResults = { winners: [{ player: winner, hand: null }], results: [{ player: winner, hand: null }], isHiLo: false, lowWinners: [] };
     game.lastAction = `${winner.name} wins $${game.pot}`;
     renderGame();
-    if (winner.isHuman) { celebrate(); addXP(30); if (!state.achievements.gameWin) unlockAch('gameWin'); }
+    if (winner.isHuman) { celebrate(); addXP(30); }
     else addXP(5);
 }
 

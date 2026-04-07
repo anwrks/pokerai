@@ -2,7 +2,6 @@
 const state = {
     mode: 'play',
     level: 1, xp: 0, totalXP: 0,
-    achievements: {}, unlockedCount: 0,
     holeCards: [], communityCards: [],
     gameType: 'holdem', numOpponents: 1,
     currentAnalysis: null, handHistory: [],
@@ -10,16 +9,6 @@ const state = {
 };
 
 const XP_LEVELS = [0,100,250,450,700,1000,1400,1900,2500,3200,4000,5000,6200,7600,9200,11000,13000,15200,17600,20200];
-
-const ACHIEVEMENTS = {
-    firstHand: {name:'First Steps', desc:'Analyze your first hand', icon:'🎴', xp:50},
-    tenHands: {name:'Getting Warm', desc:'Analyze 10 hands', icon:'📈', xp:100},
-    firstFlush: {name:'Flush!', desc:'Get a flush', icon:'♠', xp:75},
-    firstFullHouse: {name:'Full House', desc:'Get a full house', icon:'🏠', xp:100},
-    firstQuads: {name:'Quads!', desc:'Four of a kind', icon:'💎', xp:150},
-    monster: {name:'Monster', desc:'Get 90%+ equity', icon:'🚀', xp:75},
-    gameWin: {name:'Winner', desc:'Win a hand vs bots', icon:'🏆', xp:50},
-};
 
 // === INIT ===
 function init() {
@@ -199,7 +188,6 @@ function autoAnalyze() {
 
     addXP(10);
     saveToHistory();
-    checkAchievements();
 
     const panel = document.getElementById('analysis-panel');
     if (panel) panel.innerHTML = renderAnalysisPanel(state.currentAnalysis);
@@ -335,35 +323,6 @@ function updateHeader() {
     document.getElementById('xp-fill').style.width = Math.min(100, ((state.xp-cur)/(next-cur))*100) + '%';
 }
 
-// === ACHIEVEMENTS ===
-function checkAchievements() {
-    if (state.handHistory.length >= 1 && !state.achievements.firstHand) unlockAch('firstHand');
-    if (state.handHistory.length >= 10 && !state.achievements.tenHands) unlockAch('tenHands');
-    if (state.currentAnalysis) {
-        const n = state.currentAnalysis.handName;
-        if (n === 'Flush' && !state.achievements.firstFlush) unlockAch('firstFlush');
-        if (n === 'Full House' && !state.achievements.firstFullHouse) unlockAch('firstFullHouse');
-        if (n === 'Four of a Kind' && !state.achievements.firstQuads) unlockAch('firstQuads');
-        if (state.currentAnalysis.equity >= 90 && !state.achievements.monster) unlockAch('monster');
-    }
-}
-
-function unlockAch(id) {
-    const a = ACHIEVEMENTS[id];
-    if (!a || state.achievements[id]) return;
-    state.achievements[id] = true; state.unlockedCount++;
-    addXP(a.xp);
-    showModal(`<div style="padding:32px;text-align:center">
-        <div style="font-size:48px;margin-bottom:10px" class="bounce-in">${a.icon}</div>
-        <div style="font-size:11px;color:var(--gold);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Achievement Unlocked</div>
-        <div style="font-size:20px;font-weight:900;margin-bottom:4px">${a.name}</div>
-        <div style="font-size:13px;color:var(--dim);margin-bottom:4px">${a.desc}</div>
-        <div style="font-size:14px;color:var(--gold);font-weight:700">+${a.xp} XP</div>
-        <button class="btn btn-raise" style="margin-top:20px;width:100%" onclick="closeModal()">Nice!</button>
-    </div>`);
-    setTimeout(closeModal, 3000); saveProgress();
-}
-
 // === MENU ===
 function showMenu() {
     showModal(`<div style="padding:20px;min-width:280px">
@@ -372,25 +331,10 @@ function showMenu() {
             <button onclick="closeModal()" style="background:none;border:none;color:var(--dim);font-size:24px;cursor:pointer">&times;</button>
         </div>
         <div style="display:flex;flex-direction:column;gap:8px">
-            <button class="btn" style="background:rgba(255,255,255,0.08);color:white;text-align:left" onclick="closeModal();showAchModal()">🏆 Achievements (${state.unlockedCount}/${Object.keys(ACHIEVEMENTS).length})</button>
             <button class="btn" style="background:rgba(255,255,255,0.08);color:white;text-align:left" onclick="closeModal();showStatsModal()">📊 Statistics</button>
             <button class="btn" style="background:rgba(255,255,255,0.08);color:white;text-align:left" onclick="closeModal();showHistModal()">📋 Hand History (${state.handHistory.length})</button>
         </div>
     </div>`);
-}
-
-function showAchModal() {
-    const html = Object.entries(ACHIEVEMENTS).map(([id,a]) => {
-        const u = state.achievements[id];
-        return `<div style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:10px;background:rgba(255,255,255,0.04);${u?'':'opacity:0.35'}">
-            <div style="font-size:26px;width:36px;text-align:center">${a.icon}</div>
-            <div style="flex:1"><div style="font-weight:700;font-size:13px">${a.name}</div><div style="font-size:11px;color:var(--dim)">${a.desc}</div></div>
-            <div style="font-size:16px">${u?'✅':'🔒'}</div></div>`;
-    }).join('');
-    showModal(`<div style="padding:20px;max-width:380px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-        <h3 style="font-weight:700">🏆 Achievements</h3>
-        <button onclick="closeModal()" style="background:none;border:none;color:var(--dim);font-size:24px;cursor:pointer">&times;</button>
-    </div><div style="display:flex;flex-direction:column;gap:8px">${html}</div></div>`);
 }
 
 function showStatsModal() {
@@ -402,7 +346,6 @@ function showStatsModal() {
         <div class="glass" style="padding:16px;text-align:center"><div style="font-size:28px;font-weight:900;color:var(--cyan)">${t}</div><div style="font-size:11px;color:var(--dim)">Hands Analyzed</div></div>
         <div class="glass" style="padding:16px;text-align:center"><div style="font-size:28px;font-weight:900;color:var(--gold)">LVL ${state.level}</div><div style="font-size:11px;color:var(--dim)">Current Level</div></div>
         <div class="glass" style="padding:16px;text-align:center"><div style="font-size:28px;font-weight:900;color:var(--green)">${state.totalXP}</div><div style="font-size:11px;color:var(--dim)">Total XP</div></div>
-        <div class="glass" style="padding:16px;text-align:center"><div style="font-size:28px;font-weight:900;color:var(--blue)">${state.unlockedCount}</div><div style="font-size:11px;color:var(--dim)">Achievements</div></div>
     </div></div>`);
 }
 
@@ -440,14 +383,13 @@ function celebrate() {
 // === PERSISTENCE ===
 function saveProgress() {
     localStorage.setItem('pokerai_progress', JSON.stringify({
-        level:state.level, xp:state.xp, totalXP:state.totalXP,
-        achievements:state.achievements, unlockedCount:state.unlockedCount
+        level:state.level, xp:state.xp, totalXP:state.totalXP
     }));
 }
 function loadProgress() {
     try {
         const d = JSON.parse(localStorage.getItem('pokerai_progress'));
-        if (d) { state.level=d.level||1; state.xp=d.xp||0; state.totalXP=d.totalXP||0; state.achievements=d.achievements||{}; state.unlockedCount=d.unlockedCount||0; }
+        if (d) { state.level=d.level||1; state.xp=d.xp||0; state.totalXP=d.totalXP||0; }
     } catch(e){}
 }
 function saveToHistory() {
