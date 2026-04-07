@@ -17,6 +17,7 @@ let game = {
     minRaise: 20,
     initialized: false,
     gameType: 'holdem', // 'holdem', 'omaha', 'omaha-hilo'
+    numBots: 3,
     // Cached analysis for live coaching
     liveAnalysis: null,
     liveAnalysisStreet: null,
@@ -26,6 +27,12 @@ const BOT_PROFILES = [
     { name: 'Shark', avatar: '🦈', aggression: 0.7 },
     { name: 'Rock', avatar: '🗿', aggression: 0.3 },
     { name: 'Wildcard', avatar: '🃏', aggression: 0.85 },
+    { name: 'Fox', avatar: '🦊', aggression: 0.6 },
+    { name: 'Eagle', avatar: '🦅', aggression: 0.5 },
+    { name: 'Bear', avatar: '🐻', aggression: 0.4 },
+    { name: 'Wolf', avatar: '🐺', aggression: 0.75 },
+    { name: 'Owl', avatar: '🦉', aggression: 0.35 },
+    { name: 'Tiger', avatar: '🐯', aggression: 0.9 },
 ];
 
 const GAME_TYPE_LABELS = {
@@ -79,17 +86,35 @@ function renderLobby() {
             }).join('')}
         </div>
 
-        <div style="font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;font-weight:700;padding-left:4px;margin-top:8px">Your Opponents</div>
+        <div style="font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;font-weight:700;padding-left:4px;margin-top:8px">Number of Players</div>
 
-        <div class="glass" style="padding:14px;display:flex;flex-direction:column;gap:10px">
-            ${BOT_PROFILES.map(b => `
+        <div class="glass" style="padding:14px">
+            <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">
+                ${[2,3,4,5,6,7,8,9,10].map(n => `
+                    <button onclick="game.numBots=${n-1};renderLobby()" style="
+                        width:44px;height:44px;border-radius:10px;border:2px solid ${game.numBots===n-1?'var(--cyan)':'rgba(255,255,255,0.12)'};
+                        background:${game.numBots===n-1?'rgba(34,211,238,0.15)':'rgba(255,255,255,0.05)'};
+                        color:${game.numBots===n-1?'var(--cyan)':'white'};font-size:16px;font-weight:800;
+                        cursor:pointer;transition:all 0.15s;
+                    ">${n}</button>
+                `).join('')}
+            </div>
+            <div style="text-align:center;margin-top:8px;font-size:12px;color:var(--dim)">
+                You + ${game.numBots} bot${game.numBots>1?'s':''} = ${game.numBots+1} players
+            </div>
+        </div>
+
+        <div style="font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;font-weight:700;padding-left:4px;margin-top:4px">Your Opponents</div>
+
+        <div class="glass" style="padding:12px;display:flex;flex-direction:column;gap:8px;max-height:200px;overflow-y:auto">
+            ${BOT_PROFILES.slice(0, game.numBots).map(b => `
                 <div style="display:flex;align-items:center;gap:10px">
-                    <span style="font-size:28px">${b.avatar}</span>
+                    <span style="font-size:24px">${b.avatar}</span>
                     <div style="flex:1">
-                        <div style="font-size:14px;font-weight:700">${b.name}</div>
-                        <div style="font-size:11px;color:var(--dim)">${b.aggression >= 0.8 ? 'Loose-Aggressive' : b.aggression >= 0.5 ? 'Tight-Aggressive' : 'Tight-Passive'}</div>
+                        <div style="font-size:13px;font-weight:700">${b.name}</div>
+                        <div style="font-size:10px;color:var(--dim)">${b.aggression >= 0.8 ? 'Loose-Aggressive' : b.aggression >= 0.5 ? 'Tight-Aggressive' : 'Tight-Passive'}</div>
                     </div>
-                    <div style="font-size:13px;color:var(--green);font-weight:700">$1,000</div>
+                    <div style="font-size:12px;color:var(--green);font-weight:700">$1,000</div>
                 </div>
             `).join('')}
         </div>
@@ -103,7 +128,7 @@ function renderLobby() {
 function launchGame() {
     game.players = [
         { name: 'You', avatar: '👤', chips: 1000, bet: 0, folded: false, allIn: false, isHuman: true, cards: [], hasActed: false },
-        ...BOT_PROFILES.map(b => ({
+        ...BOT_PROFILES.slice(0, game.numBots).map(b => ({
             name: b.name, avatar: b.avatar, chips: 1000, bet: 0, folded: false,
             allIn: false, isBot: true, aggression: b.aggression, cards: [], hasActed: false
         }))
@@ -636,6 +661,23 @@ function renderLiveCoach(human) {
 }
 
 // === RENDER ===
+function getBotPositions(numBots) {
+    const positions = [];
+    const total = numBots + 1; // +1 for human's slot at bottom
+    for (let i = 1; i <= numBots; i++) {
+        const angle = Math.PI / 2 + (2 * Math.PI * i) / total;
+        positions.push({
+            left: 50 + 46 * Math.cos(angle),
+            top: 48 + 42 * Math.sin(angle),
+        });
+    }
+    return positions;
+}
+
+function renderTinyCard() {
+    return `<div style="width:18px;height:26px;background:repeating-linear-gradient(45deg,#1e3a5f,#1e3a5f 3px,#15304f 3px,#15304f 6px);border-radius:3px;border:1px solid #2a5a8f;display:inline-block;flex-shrink:0"></div>`;
+}
+
 function renderGame() {
     const c = document.getElementById('app-content');
     const human = game.players[0];
@@ -649,62 +691,80 @@ function renderGame() {
     const halfPot = game.currentBet + Math.max(game.minRaise, Math.floor(game.pot / 2));
     const potRaise = game.currentBet + Math.max(game.minRaise, game.pot);
     const numHole = holeCardCount();
+    const positions = getBotPositions(bots.length);
+    const seatSize = bots.length <= 4 ? 72 : bots.length <= 6 ? 64 : 56;
 
-    c.innerHTML = `<div style="display:flex;flex-direction:column;gap:10px" class="fade-in">
+    c.innerHTML = `<div style="display:flex;flex-direction:column;gap:8px" class="fade-in">
         <!-- Game Type Badge -->
         <div style="text-align:center">
-            <span style="font-size:11px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:1px">${GAME_TYPE_LABELS[game.gameType]}</span>
+            <span style="font-size:10px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:1px">${GAME_TYPE_LABELS[game.gameType]} &middot; ${game.players.length} Players</span>
         </div>
 
-        <!-- Opponents -->
-        <div style="display:grid;grid-template-columns:repeat(${bots.length},1fr);gap:8px">
+        <!-- TABLE WITH SEATS -->
+        <div style="position:relative;width:100%;padding-bottom:${bots.length <= 3 ? '60' : bots.length <= 6 ? '70' : '80'}%">
+            <!-- Felt oval -->
+            <div class="felt-table" style="position:absolute;left:14%;right:14%;top:16%;bottom:16%;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px">
+                <div style="font-size:9px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">${game.street}</div>
+                <div style="font-size:22px;font-weight:900;color:var(--gold);margin-bottom:6px">$${game.pot}</div>
+                <div style="display:flex;gap:3px;justify-content:center;flex-wrap:wrap;max-width:90%">
+                    ${game.communityCards.length > 0 ?
+                        game.communityCards.map((card, i) => `<div class="flip-in" style="animation-delay:${i*0.06}s">${renderCardHTML(card, 'small')}</div>`).join('') :
+                        `<span style="color:rgba(255,255,255,0.2);font-size:11px">${game.street === 'preflop' ? 'Preflop' : ''}</span>`}
+                </div>
+                ${game.lastAction ? `<div style="margin-top:4px;font-size:10px;color:rgba(255,255,255,0.4);max-width:90%;text-align:center">${game.lastAction}</div>` : ''}
+            </div>
+
+            <!-- Bot seats around the table -->
             ${bots.map((p, i) => {
-                const isActive = game.currentPlayer === i+1 && !p.folded;
-                return `<div class="player-seat${isActive?' active-turn':''}${p.folded?' folded':''}" style="flex-direction:column;padding:10px">
-                    <div style="display:flex;align-items:center;gap:6px;width:100%;margin-bottom:6px">
-                        <span style="font-size:22px">${p.avatar}</span>
-                        <div style="flex:1;min-width:0">
-                            <div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</div>
-                            <div style="font-size:11px;color:var(--green);font-weight:700">$${p.chips}</div>
+                const pos = positions[i];
+                const isActive = game.currentPlayer === i + 1 && !p.folded;
+                const isDealer = game.dealerButton === i + 1;
+                return `<div style="position:absolute;left:${pos.left}%;top:${pos.top}%;transform:translate(-50%,-50%);width:${seatSize}px;text-align:center;z-index:2">
+                    <div style="
+                        background:${isActive ? 'rgba(34,211,238,0.2)' : 'rgba(0,0,0,0.5)'};
+                        border:${isActive ? '2px solid rgba(34,211,238,0.5)' : '1px solid rgba(255,255,255,0.1)'};
+                        border-radius:10px;padding:6px 4px;backdrop-filter:blur(8px);
+                        ${p.folded ? 'opacity:0.35;' : ''}
+                        transition:all 0.3s;position:relative;
+                    ">
+                        ${isDealer ? '<div style="position:absolute;top:-8px;right:-4px;width:18px;height:18px;background:var(--gold);border-radius:50%;font-size:10px;font-weight:900;color:#000;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,0.4)">D</div>' : ''}
+                        <div style="font-size:${seatSize >= 64 ? 20 : 16}px;line-height:1">${p.avatar}</div>
+                        <div style="font-size:${seatSize >= 64 ? 10 : 9}px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px">${p.name}</div>
+                        <div style="font-size:${seatSize >= 64 ? 10 : 9}px;color:var(--green);font-weight:700">$${p.chips}</div>
+                        <div style="display:flex;gap:2px;justify-content:center;margin-top:2px">
+                            ${p.folded ? `<span style="font-size:${seatSize >= 64 ? 9 : 8}px;color:var(--red)">FOLD</span>` :
+                              p.allIn ? `<span style="font-size:${seatSize >= 64 ? 9 : 8}px;color:var(--gold);font-weight:800">ALL IN</span>` :
+                              Array(Math.min(numHole, 2)).fill(renderTinyCard()).join('')}
                         </div>
+                        ${p.bet > 0 ? `<div style="font-size:8px;color:var(--gold);margin-top:1px">$${p.bet}</div>` : ''}
                     </div>
-                    <div style="display:flex;gap:3px;justify-content:center;flex-wrap:wrap">
-                        ${p.folded ? '<span style="font-size:11px;color:var(--red);font-weight:600">FOLDED</span>' :
-                          p.allIn ? '<span style="font-size:11px;color:var(--gold);font-weight:800">ALL IN</span>' :
-                          Array(numHole).fill(renderCardBack('small')).join('')}
-                    </div>
-                    ${p.bet > 0 ? `<div style="font-size:10px;color:var(--gold);margin-top:4px;text-align:center">Bet: $${p.bet}</div>` : ''}
                 </div>`;
             }).join('')}
+
+            <!-- Your seat indicator on the table -->
+            <div style="position:absolute;left:50%;bottom:2%;transform:translateX(-50%);z-index:2">
+                <div style="background:${isMyTurn ? 'rgba(34,211,238,0.2)' : 'rgba(0,0,0,0.5)'};border:${isMyTurn ? '2px solid rgba(34,211,238,0.5)' : '1px solid rgba(255,255,255,0.1)'};border-radius:10px;padding:4px 14px;backdrop-filter:blur(8px);text-align:center;position:relative">
+                    ${game.dealerButton === 0 ? '<div style="position:absolute;top:-8px;right:-4px;width:18px;height:18px;background:var(--gold);border-radius:50%;font-size:10px;font-weight:900;color:#000;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,0.4)">D</div>' : ''}
+                    <span style="font-size:14px">👤</span>
+                    <div style="font-size:10px;font-weight:700">You</div>
+                    <div style="font-size:10px;color:var(--green);font-weight:700">$${human.chips}</div>
+                </div>
+            </div>
         </div>
 
-        <!-- Table -->
-        <div class="felt-table" style="padding:20px 16px;text-align:center">
-            <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px">
-                <span style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:2px">${game.street}</span>
-            </div>
-            <div style="font-size:30px;font-weight:900;color:var(--gold);margin-bottom:12px">$${game.pot}</div>
-            <div style="display:flex;gap:6px;justify-content:center;min-height:82px;align-items:center;flex-wrap:wrap">
-                ${game.communityCards.length > 0 ?
-                    game.communityCards.map((card, i) => `<div class="flip-in" style="animation-delay:${i*0.08}s">${renderCardHTML(card)}</div>`).join('') :
-                    '<span style="color:rgba(255,255,255,0.25);font-size:13px">Waiting for flop...</span>'}
-            </div>
-            ${game.lastAction ? `<div style="margin-top:10px;font-size:12px;color:rgba(255,255,255,0.45)">${game.lastAction}</div>` : ''}
-        </div>
-
-        <!-- Your Hand -->
-        <div class="glass${isMyTurn?' active-turn':''}" style="padding:16px;${human.folded?'opacity:0.35;':''}">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-                <div style="display:flex;align-items:center;gap:8px">
-                    <span style="font-size:22px">👤</span>
+        <!-- Your Hand (below table) -->
+        <div class="glass${isMyTurn?' active-turn':''}" style="padding:14px;${human.folded?'opacity:0.35;':''}">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <div style="display:flex;align-items:center;gap:6px">
+                    <span style="font-size:18px">👤</span>
                     <div>
-                        <div style="font-size:14px;font-weight:700">You${human.folded?' <span style="color:var(--red);font-size:11px">FOLDED</span>':''}${human.allIn?' <span style="color:var(--gold);font-size:11px;font-weight:800">ALL IN</span>':''}</div>
+                        <div style="font-size:13px;font-weight:700">Your Hand${human.folded?' <span style="color:var(--red);font-size:11px">FOLDED</span>':''}${human.allIn?' <span style="color:var(--gold);font-size:11px;font-weight:800">ALL IN</span>':''}</div>
                         ${human.bet > 0 ? `<div style="font-size:11px;color:var(--dim)">Bet: $${human.bet}</div>` : ''}
                     </div>
                 </div>
-                <div style="font-size:18px;font-weight:900;color:var(--green)">$${human.chips}</div>
+                <div style="font-size:16px;font-weight:900;color:var(--green)">$${human.chips}</div>
             </div>
-            <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+            <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap">
                 ${human.cards.map(card => renderCardHTML(card)).join('')}
             </div>
             ${!human.folded ? renderLiveCoach(human) : ''}
@@ -725,10 +785,10 @@ function renderGame() {
                 <button class="btn btn-allin" style="flex:1;font-size:12px;padding:10px 6px" onclick="playerAction('allin')">All In<br>$${human.chips + human.bet}</button>
             </div>
         </div>` : !game.handOver && !human.folded && !human.allIn ? `
-            <div style="text-align:center;padding:20px;color:var(--cyan);font-size:14px">
+            <div style="text-align:center;padding:14px;color:var(--cyan);font-size:14px">
                 <span style="animation:pulse 1.5s infinite;display:inline-block">Waiting for ${game.players[game.currentPlayer]?.name || '...'}...</span>
             </div>` : human.folded && !game.handOver ? `
-            <div style="text-align:center;padding:12px;color:var(--dim);font-size:13px">Hand in progress...</div>` : ''}
+            <div style="text-align:center;padding:10px;color:var(--dim);font-size:13px">Hand in progress...</div>` : ''}
     </div>`;
 }
 
