@@ -694,7 +694,7 @@ function renderGame() {
     const positions = getBotPositions(bots.length);
     const seatSize = bots.length <= 4 ? 72 : bots.length <= 6 ? 64 : 56;
 
-    c.innerHTML = `<div style="display:flex;flex-direction:column;gap:8px" class="fade-in">
+    c.innerHTML = `<div style="display:flex;flex-direction:column;gap:8px">
         <!-- Game Type Badge -->
         <div style="text-align:center">
             <span style="font-size:10px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:1px">${GAME_TYPE_LABELS[game.gameType]} &middot; ${game.players.length} Players</span>
