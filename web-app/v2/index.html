@@ -4,452 +4,249 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>AI Poker Pro</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <meta name="theme-color" content="#0a0f1e">
+    <title>Poker AI</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-        
-        * {
-            -webkit-tap-highlight-color: transparent;
-            font-family: 'Inter', sans-serif;
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #0a0f1e;
+            --bg2: #111827;
+            --felt: #1a5c2e;
+            --felt-dark: #0d3318;
+            --gold: #f59e0b;
+            --cyan: #22d3ee;
+            --red: #ef4444;
+            --green: #10b981;
+            --blue: #3b82f6;
+            --text: #f1f5f9;
+            --dim: #64748b;
+            --glass: rgba(255,255,255,0.06);
+            --glass-b: rgba(255,255,255,0.1);
         }
-        
+
         body {
-            background: linear-gradient(135deg, #0a0e27 0%, #16213e 50%, #0f3460 100%);
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', -apple-system, sans-serif;
             min-height: 100vh;
+            min-height: 100dvh;
             overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
         }
-        
-        .iphone-frame {
-            max-width: 428px;
+
+        #app {
+            max-width: 480px;
             margin: 0 auto;
-            background: #000;
-            border-radius: 40px;
-            padding: 12px;
-            box-shadow: 0 20px 80px rgba(0,0,0,0.9), 0 0 40px rgba(0,150,255,0.2);
-        }
-        
-        .iphone-screen {
-            background: linear-gradient(135deg, #0a0e27 0%, #16213e 50%, #0f3460 100%);
-            border-radius: 32px;
-            overflow: hidden;
-            position: relative;
-        }
-        
-        .notch {
-            position: absolute;
-            top: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 180px;
-            height: 30px;
-            background: #000;
-            border-radius: 0 0 20px 20px;
-            z-index: 100;
-        }
-        
-        .status-bar {
-            height: 44px;
-            display: flex;
-            align-items: flex-end;
-            padding: 0 20px 6px;
-            color: white;
-            font-size: 12px;
-            justify-content: space-between;
-        }
-        
-        /* Card styles */
-        .card {
-            width: 70px;
-            height: 100px;
-            background: linear-gradient(145deg, #ffffff 0%, #f0f0f0 100%);
-            border-radius: 10px;
+            min-height: 100vh;
+            min-height: 100dvh;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
-            position: relative;
-            transition: transform 0.2s, box-shadow 0.2s;
-            cursor: pointer;
+            background: linear-gradient(180deg, #0d1224 0%, #0a0f1e 40%, #0f1729 100%);
         }
-        
-        .card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+
+        /* Header */
+        .app-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 16px; background: rgba(0,0,0,0.4);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
         }
-        
-        .card:active {
-            transform: scale(0.95);
+        .app-logo { font-size: 18px; font-weight: 900; display: flex; align-items: center; gap: 8px; letter-spacing: -0.5px; }
+        .app-logo .suit { color: var(--green); font-size: 22px; }
+        .level-badge {
+            background: linear-gradient(135deg, var(--gold), #d97706);
+            color: #000; font-size: 11px; font-weight: 800;
+            padding: 3px 10px; border-radius: 6px;
         }
-        
-        .card-rank {
-            font-size: 26px;
-            font-weight: 900;
-            line-height: 1;
+        .header-right { display: flex; align-items: center; gap: 10px; }
+        .menu-btn {
+            background: none; border: none; color: var(--dim); font-size: 22px;
+            cursor: pointer; padding: 4px; transition: color 0.2s;
         }
-        
-        .card-suit {
-            font-size: 36px;
-            line-height: 1;
-            margin-top: 2px;
-        }
-        
-        .card-placeholder {
-            width: 70px;
-            height: 100px;
-            border: 2px dashed rgba(255,255,255,0.3);
-            border-radius: 10px;
-            background: rgba(255,255,255,0.05);
-            transition: all 0.3s;
-        }
-        
-        .card-placeholder:hover {
-            background: rgba(255,255,255,0.1);
-            border-color: rgba(255,255,255,0.5);
-        }
-        
-        /* Glassmorphism */
-        .glass {
-            background: rgba(255,255,255,0.05);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        .glass-strong {
-            background: rgba(255,255,255,0.08);
-            backdrop-filter: blur(15px);
-            border: 1px solid rgba(255,255,255,0.15);
-        }
-        
-        /* Animations */
-        @keyframes slideInUp {
-            from {
-                transform: translateY(20px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-        
-        @keyframes pulse-glow {
-            0%, 100% { box-shadow: 0 0 20px rgba(34, 211, 238, 0.4); }
-            50% { box-shadow: 0 0 40px rgba(34, 211, 238, 0.8); }
-        }
-        
-        @keyframes confetti {
-            0% { transform: translateY(0) rotate(0deg); }
-            100% { transform: translateY(100vh) rotate(720deg); }
-        }
-        
-        .slide-in-up {
-            animation: slideInUp 0.3s ease-out;
-        }
-        
-        .analyzing {
-            animation: pulse-glow 2s ease-in-out infinite;
-        }
-        
-        /* Progress bars */
-        .progress-bar {
-            height: 8px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 4px;
-            overflow: hidden;
-        }
-        
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #00d4ff, #00ffaa);
-            transition: width 0.5s ease-out;
-        }
-        
+        .menu-btn:hover { color: var(--text); }
+
         /* XP Bar */
-        .xp-bar {
-            height: 6px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 3px;
-            overflow: hidden;
+        .xp-bar { height: 3px; background: rgba(255,255,255,0.08); }
+        .xp-fill { height: 100%; background: linear-gradient(90deg, var(--gold), #fbbf24); transition: width 0.6s ease; }
+
+        /* Mode Tabs */
+        .mode-tabs {
+            display: flex; gap: 4px; padding: 10px 16px;
+            background: rgba(0,0,0,0.25);
         }
-        
-        .xp-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #ffd700, #ffaa00);
-            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
-            transition: width 0.5s ease-out;
+        .mode-tab {
+            flex: 1; padding: 10px; border: none; border-radius: 10px;
+            font-size: 13px; font-weight: 700; cursor: pointer;
+            transition: all 0.25s; background: transparent; color: var(--dim);
         }
-        
-        /* Achievement badge */
-        .badge {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 28px;
-            background: linear-gradient(135deg, #ffd700 0%, #ffaa00 100%);
-            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+        .mode-tab.active { background: var(--green); color: white; box-shadow: 0 2px 12px rgba(16,185,129,0.3); }
+        .mode-tab:not(.active):hover { background: rgba(255,255,255,0.06); }
+
+        /* Content */
+        #app-content { flex: 1; padding: 12px 14px 20px; overflow-y: auto; }
+
+        /* Cards */
+        .poker-card {
+            display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+            background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%);
+            border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.35), 0 0 0 1px rgba(0,0,0,0.08);
+            position: relative; transition: transform 0.15s;
+            font-family: Georgia, 'Times New Roman', serif;
         }
-        
-        .badge.locked {
-            background: rgba(255,255,255,0.1);
-            filter: grayscale(1);
-            opacity: 0.5;
+        .poker-card:hover { transform: translateY(-2px); }
+        .poker-card .rank { font-weight: 900; line-height: 1; }
+        .poker-card .suit-icon { line-height: 1; }
+        .poker-card.red { color: #dc2626; }
+        .poker-card.black { color: #1a1a2e; }
+
+        .card-back {
+            display: inline-flex; align-items: center; justify-content: center;
+            background: repeating-linear-gradient(45deg, #1e3a5f, #1e3a5f 4px, #15304f 4px, #15304f 8px);
+            border-radius: 8px; border: 2px solid #2a5a8f;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.35); color: #3a7abf; font-weight: 900;
         }
-        
-        /* Hand strength meter */
-        .strength-meter {
+
+        .card-placeholder {
+            display: inline-flex; align-items: center; justify-content: center;
+            border: 2px dashed rgba(255,255,255,0.15); border-radius: 8px;
+            color: rgba(255,255,255,0.15); font-size: 20px; transition: all 0.2s; cursor: pointer;
+        }
+        .card-placeholder:hover { border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.03); }
+
+        /* Glass */
+        .glass { background: var(--glass); border: 1px solid var(--glass-b); border-radius: 14px; }
+
+        /* Felt Table */
+        .felt-table {
+            background: radial-gradient(ellipse at center, #1a6b3c 0%, #0e4527 65%, #092e17 100%);
+            border: 5px solid #5c3d24; border-radius: 18px;
+            box-shadow: inset 0 0 40px rgba(0,0,0,0.35), 0 4px 20px rgba(0,0,0,0.5),
+                        0 0 0 2px rgba(92,61,36,0.5);
             position: relative;
-            height: 8px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 4px;
-            overflow: hidden;
         }
-        
-        .strength-fill {
-            height: 100%;
-            transition: width 0.5s, background 0.5s;
+        .felt-table::before {
+            content: ''; position: absolute; inset: 6px; border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 14px; pointer-events: none;
         }
-        
-        /* Modal */
-        .modal {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.85);
-            backdrop-filter: blur(10px);
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s;
-        }
-        
-        .modal.active {
-            opacity: 1;
-            pointer-events: all;
-        }
-        
-        .modal-content {
-            background: linear-gradient(135deg, #1a1f3a 0%, #2d3561 100%);
-            border-radius: 20px;
-            max-width: 90%;
-            max-height: 90vh;
-            overflow: auto;
-            transform: scale(0.9);
-            transition: transform 0.3s;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        .modal.active .modal-content {
-            transform: scale(1);
-        }
-        
+
         /* Buttons */
         .btn {
-            padding: 14px 20px;
-            border-radius: 12px;
-            font-weight: 600;
-            transition: all 0.2s;
-            text-align: center;
-            cursor: pointer;
-            user-select: none;
-            border: none;
+            padding: 12px 20px; border: none; border-radius: 10px;
+            font-weight: 700; font-size: 14px; cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.2s; user-select: none;
+            font-family: 'Inter', sans-serif;
         }
-        
-        .btn:active {
-            transform: scale(0.96);
+        .btn:active { transform: scale(0.95); }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+        .btn-fold { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+        .btn-check { background: linear-gradient(135deg, #06b6d4, #0891b2); color: white; }
+        .btn-call { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
+        .btn-raise { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+        .btn-allin { background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; font-weight: 800; }
+        .btn-primary { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; }
+        .btn-deal { background: linear-gradient(135deg, #10b981, #059669); color: white; box-shadow: 0 4px 16px rgba(16,185,129,0.3); }
+
+        /* Player Seat */
+        .player-seat {
+            display: flex; align-items: center; gap: 8px;
+            padding: 10px 12px; border-radius: 12px;
+            background: rgba(255,255,255,0.04); transition: all 0.3s;
+            border: 1px solid transparent;
         }
-        
-        .btn-primary {
-            background: linear-gradient(135deg, #00d4ff 0%, #0096ff 100%);
-            color: white;
-            box-shadow: 0 4px 15px rgba(0, 212, 255, 0.3);
+        .player-seat.active-turn { background: rgba(34,211,238,0.1); border-color: rgba(34,211,238,0.25); }
+        .player-seat.folded { opacity: 0.35; }
+        .player-seat.winner { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.35); }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(6px); z-index: 100;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.2s;
         }
-        
-        .btn-success {
-            background: linear-gradient(135deg, #00ff88 0%, #00cc66 100%);
-            color: white;
-            box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);
+        .modal-overlay.active { opacity: 1; pointer-events: all; }
+        .modal-content {
+            background: linear-gradient(180deg, #1a1f38 0%, #151929 100%);
+            border-radius: 18px; border: 1px solid rgba(255,255,255,0.1);
+            max-width: 92%; max-height: 85vh; overflow: auto;
+            transform: scale(0.95); transition: transform 0.25s;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
         }
-        
-        .btn-danger {
-            background: linear-gradient(135deg, #ff3366 0%, #cc0033 100%);
-            color: white;
-            box-shadow: 0 4px 15px rgba(255, 51, 102, 0.3);
+        .modal-overlay.active .modal-content { transform: scale(1); }
+
+        /* Card Picker */
+        .picker-grid { display: flex; flex-direction: column; gap: 8px; }
+        .picker-row { display: flex; align-items: center; gap: 3px; }
+        .picker-suit-label { width: 28px; font-size: 20px; text-align: center; flex-shrink: 0; }
+        .picker-card {
+            flex: 1; aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+            background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 6px; font-size: 11px; font-weight: 700;
+            cursor: pointer; transition: all 0.15s; color: white;
         }
-        
-        /* Quick picker grid */
-        .quick-picker {
-            display: grid;
-            grid-template-columns: repeat(13, 1fr);
-            gap: 4px;
+        .picker-card:hover:not(.used) { background: rgba(255,255,255,0.18); transform: scale(1.08); }
+        .picker-card.used { opacity: 0.15; cursor: not-allowed; }
+
+        /* Strength Meter */
+        .strength-meter { height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; }
+        .strength-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes flipIn { from { transform: rotateY(90deg); opacity: 0; } to { transform: rotateY(0); opacity: 1; } }
+        @keyframes bounceIn { 0% { transform: scale(0.3); opacity: 0; } 60% { transform: scale(1.08); } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+        @keyframes confettiFall {
+            0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
         }
-        
-        .quick-card {
-            aspect-ratio: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(255,255,255,0.1);
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.2s;
+        @keyframes glow {
+            0%,100% { box-shadow: 0 0 8px rgba(245,158,11,0.3); }
+            50% { box-shadow: 0 0 20px rgba(245,158,11,0.6); }
         }
-        
-        .quick-card:hover {
-            background: rgba(255,255,255,0.2);
-            transform: scale(1.1);
+        .fade-in { animation: fadeIn 0.3s ease-out; }
+        .slide-up { animation: slideUp 0.35s ease-out; }
+        .flip-in { animation: flipIn 0.4s ease-out; }
+        .bounce-in { animation: bounceIn 0.5s ease-out; }
+
+        .confetti-piece {
+            position: fixed; width: 8px; height: 8px; border-radius: 2px;
+            animation: confettiFall 2.5s ease-out forwards; z-index: 999;
         }
-        
-        .quick-card.selected {
-            background: linear-gradient(135deg, #00d4ff 0%, #0096ff 100%);
-            color: white;
-        }
-        
-        .home-indicator {
-            height: 5px;
-            width: 134px;
-            background: rgba(255,255,255,0.3);
-            border-radius: 3px;
-            margin: 8px auto;
-        }
-        
-        /* Confetti */
-        .confetti {
-            position: fixed;
-            width: 10px;
-            height: 10px;
-            background: #ffd700;
-            animation: confetti 3s ease-out forwards;
-            z-index: 9999;
-        }
-        
-        /* Tooltip */
-        .tooltip {
-            position: absolute;
-            background: rgba(0,0,0,0.9);
-            color: white;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            white-space: nowrap;
-            z-index: 1000;
-            pointer-events: none;
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+        /* Responsive */
+        @media (min-width: 481px) {
+            #app { border-left: 1px solid rgba(255,255,255,0.06); border-right: 1px solid rgba(255,255,255,0.06); }
         }
     </style>
 </head>
 <body>
-    <div class="iphone-frame">
-        <div class="iphone-screen">
-            <!-- Notch -->
-            <div class="notch"></div>
-            
-            <!-- Status Bar -->
-            <div class="status-bar">
-                <span id="time">9:41</span>
-                <span>📶 🔋 100%</span>
+    <div id="app">
+        <div class="app-header">
+            <div class="app-logo"><span class="suit">♠</span> Poker AI</div>
+            <div class="header-right">
+                <span class="level-badge" id="level-badge">LVL 1</span>
+                <button class="menu-btn" onclick="showMenu()">&#9776;</button>
             </div>
-            
-            <!-- Content -->
-            <div class="px-4 pb-6" style="min-height: calc(100vh - 120px); padding-top: 50px;">
-                <!-- Header with Level & XP -->
-                <div class="glass-strong rounded-2xl p-4 mb-4">
-                    <div class="flex items-center justify-between mb-3">
-                        <div class="flex items-center gap-3">
-                            <div class="text-3xl">♠️</div>
-                            <div>
-                                <h1 class="text-xl font-bold text-white">Poker AI Pro</h1>
-                                <div class="flex items-center gap-2 mt-1">
-                                    <div class="px-2 py-0.5 bg-gradient-to-r from-yellow-500 to-yellow-600 rounded text-xs font-bold text-white">
-                                        LVL <span id="player-level">1</span>
-                                    </div>
-                                    <div class="text-xs text-gray-300" id="player-tier">Bronze</div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="flex gap-2">
-                            <button onclick="showAchievements()" class="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center text-white relative">
-                                🏆
-                                <span class="absolute -top-1 -right-1 bg-yellow-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold" id="achievement-count">0</span>
-                            </button>
-                            <button onclick="showStats()" class="w-10 h-10 bg-cyan-600 rounded-full flex items-center justify-center text-white">
-                                📊
-                            </button>
-                            <button onclick="showHistory()" class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white relative">
-                                ⏱
-                                <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold" id="badge">0</span>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <!-- Mode Switcher -->
-                    <div class="mt-3 flex gap-2">
-                        <button id="analyzer-btn" onclick="switchMode('analyzer')" class="flex-1 px-3 py-2 bg-gradient-to-r from-cyan-600 to-cyan-700 text-white rounded-lg text-xs font-bold">
-                            📊 Analyzer
-                        </button>
-                        <button id="game-btn" onclick="switchMode('game')" class="flex-1 px-3 py-2 bg-white/10 text-white rounded-lg text-xs font-bold">
-                            🎮 Play vs Bots
-                        </button>
-                    </div>
-                    </div>
-                    
-                    <!-- XP Progress Bar -->
-                    <div>
-                        <div class="flex items-center justify-between text-xs text-gray-300 mb-1">
-                            <span id="xp-text">0/100 XP</span>
-                            <span>+<span id="last-xp">0</span> XP</span>
-                        </div>
-                        <div class="xp-bar">
-                            <div class="xp-fill" id="xp-fill" style="width: 0%"></div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Quick Settings -->
-                <div class="glass rounded-xl p-3 mb-4 flex gap-2">
-                    <select id="game-mode" class="flex-1 bg-white/10 border border-white/20 text-white text-sm rounded-lg px-3 py-2">
-                        <option value="holdem">Hold'em</option>
-                        <option value="omaha-high">Omaha High</option>
-                        <option value="omaha-hilo">Omaha Hi-Lo</option>
-                    </select>
-                    
-                    <select id="player-count" class="bg-white/10 border border-white/20 text-white text-sm rounded-lg px-3 py-2">
-                        <option value="2">2P</option>
-                        <option value="3">3P</option>
-                        <option value="4">4P</option>
-                        <option value="5">5P</option>
-                        <option value="6">6P</option>
-                        <option value="7">7P</option>
-                        <option value="8">8P</option>
-                        <option value="9">9P</option>
-                    </select>
-                    
-                    <button onclick="toggleQuickPicker()" class="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold">
-                        ⚡ Quick
-                    </button>
-                </div>
-                
-                <!-- Main content will be injected here -->
-                <div id="app-content"></div>
-            </div>
-            
-            <!-- Home Indicator -->
-            <div class="home-indicator"></div>
         </div>
+        <div class="xp-bar"><div class="xp-fill" id="xp-fill" style="width:0%"></div></div>
+        <div class="mode-tabs">
+            <button class="mode-tab active" id="tab-play" onclick="switchMode('play')">&#127918; Play</button>
+            <button class="mode-tab" id="tab-analyze" onclick="switchMode('analyze')">&#128202; Analyze</button>
+        </div>
+        <div id="app-content"></div>
     </div>
-    
-    <!-- Modals will be added by JS -->
-    <div id="modals-container"></div>
-    
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal-content" id="modal-content"></div>
+    </div>
+    <script src="poker-engine.js"></script>
     <script src="app-v2.js"></script>
     <script src="game-mode.js"></script>
 </body>
